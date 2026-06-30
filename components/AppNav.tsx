@@ -34,14 +34,14 @@ export default async function AppNav() {
     user?.user_metadata?.full_name ?? user?.email ?? "Not signed in";
 
   return (
-    <header className="border-b bg-white">
+    <header className="border-b bg-white text-slate-900">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="text-xl font-bold">
+          <Link href="/dashboard" className="text-xl font-bold text-slate-900">
             Notebook Helper
           </Link>
 
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex items-center gap-4 text-sm text-slate-700">
             <Link href="/dashboard" className="hover:underline">
               Dashboard
             </Link>
@@ -54,21 +54,21 @@ export default async function AppNav() {
               <div className="absolute left-0 z-50 hidden min-w-44 rounded border bg-white py-2 shadow-lg group-hover:block">
                 <Link
                   href="/images"
-                  className="block px-4 py-2 hover:bg-slate-100"
+                  className="block px-4 py-2 text-slate-700 hover:bg-slate-100"
                 >
                   View Images
                 </Link>
 
                 <Link
                   href="/images/new"
-                  className="block px-4 py-2 hover:bg-slate-100"
+                  className="block px-4 py-2 text-slate-700 hover:bg-slate-100"
                 >
                   Add Image
                 </Link>
 
                 <Link
                   href="/images/manage"
-                  className="block px-4 py-2 hover:bg-slate-100"
+                  className="block px-4 py-2 text-slate-700 hover:bg-slate-100"
                 >
                   Manage Images
                 </Link>
@@ -85,7 +85,7 @@ export default async function AppNav() {
           </nav>
         </div>
 
-        <div className="text-right text-sm text-gray-600">
+        <div className="text-right text-sm text-slate-600">
           <div>
             You are: <strong>{displayName}</strong>
           </div>
