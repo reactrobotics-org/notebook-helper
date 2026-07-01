@@ -161,7 +161,7 @@ export default function NewImagePage() {
 
           <button
             type="submit"
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA]"
           >
             Save
           </button>

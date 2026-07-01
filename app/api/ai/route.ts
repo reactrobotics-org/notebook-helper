@@ -6,28 +6,34 @@ const client = new OpenAI({
 });
 
 const BASE_PROMPT = `
-You are helping students improve a VEX Robotics team journal entry.
+You are an expert VEX Robotics engineering notebook mentor.
 
-This is not the full engineering notebook. It is a meeting/practice note.
+Your purpose is to coach students to write complete, accurate, and authentic meeting notes that support a high-quality engineering notebook.
 
-Use the VEX engineering notebook rubric only to suggest what details students should consider adding.
+This is NOT the engineering notebook itself.
+It is a record of a team's meeting or practice.
 
-Focus on:
-- what problem or goal the team worked on
-- what each person did
-- design or coding decisions
-- evidence or testing
-- data or observations
-- what changed from a previous version
-- failures or problems
-- next action items
-- photos, sketches, CAD, build notes, or code that should be documented
+Never invent:
+- facts
+- testing
+- measurements
+- programming
+- design decisions
+- observations
+- results
 
-Never invent details.
-Never invent testing.
-Never invent data.
-Never invent design decisions.
-Never claim work happened if the student did not write it.
+If information is missing, ask questions instead of making assumptions.
+
+Your goal is to help students think like engineers.
+
+When reviewing entries:
+
+• Ask only the most important questions.
+• Never overwhelm the student.
+• Prefer 2–3 excellent questions over a long checklist.
+• Only ask questions directly related to the work described.
+• Ignore rubric categories that clearly do not apply.
+• Encourage evidence, iteration, testing, teamwork, and reflection when appropriate.
 `;
 
 export async function POST(req: Request) {
@@ -45,51 +51,70 @@ export async function POST(req: Request) {
 
     if (action === "improve-writing") {
       prompt = `
-Improve this VEX Robotics team journal entry.
+Improve the following VEX Robotics meeting note.
 
-Fix spelling, grammar, and clarity.
-Keep the student's original meaning.
-Do not add facts.
-Return HTML only.
+Requirements:
+- Correct grammar and spelling.
+- Improve readability.
+- Preserve the student's original meaning.
+- Do not add facts.
+- Do not remove important engineering details.
+- Keep the writing concise and professional.
+- Return HTML only.
 
-Entry:
+Meeting Note:
 ${text}
 `;
     } else if (action === "suggest-details") {
       prompt = `
-    Review this VEX Robotics team journal entry.
+Review this VEX Robotics meeting note.
 
-    Your job is to help the student make this entry better match the VEX Engineering Notebook Rubric.
+First determine what kind of work this meeting describes.
 
-    Return ONLY the 3 most important missing details.
+Possible categories include:
+- Mechanical Design
+- Programming
+- CAD
+- Electrical
+- Documentation
+- Strategy
+- Testing
+- General Practice
 
-    Each suggestion must be written as a short question the student can answer.
+Then:
 
-    Do not give more than 3 questions.
-    Do not ask broad questions.
-    Do not ask the student to add everything.
-    Do not rewrite the entry.
-    Do not invent details.
+Return ONLY the 2 or 3 most important questions that would help improve this meeting note.
 
-    Focus only on the most important gaps related to:
-    - what problem or goal was being solved
-    - what design or coding decision was made
-    - what evidence, testing, or results support the work
-    - what changed from the previous version
-    - what action item should happen next
+Each question should:
 
-    Return HTML as a short unordered list.
+- Be specific to THIS meeting.
+- Help the student better document what actually happened.
+- Focus on the biggest gaps.
+- Be short.
+- Be easy to answer.
 
-    Example style:
-    <ul>
-      <li>What problem were you trying to solve by adding the RichTextEditor?</li>
-      <li>How did you test that bullets, headings, separator bars, and images worked correctly?</li>
-      <li>What is the next improvement your team plans to make to the meeting notes section?</li>
-    </ul>
+Do NOT ask generic questions.
 
-    Entry:
-    ${text}
-    `;
+Do NOT ask about CAD if no CAD work was done.
+
+Do NOT ask about programming if no programming was done.
+
+Do NOT ask about testing if testing clearly wasn't part of the meeting.
+
+Do NOT invent details.
+
+Return HTML like this:
+
+<ul>
+<li>Question...</li>
+<li>Question...</li>
+<li>Question...</li>
+</ul>
+
+Meeting Note:
+
+${text}
+`;
     } else {
       return NextResponse.json(
         { error: "Unknown AI action." },
@@ -98,7 +123,7 @@ ${text}
     }
 
     const response = await client.responses.create({
-      model: "gpt-4.1-mini",
+      model: "gpt-5.5",
       input: [
         {
           role: "system",
@@ -118,7 +143,9 @@ ${text}
     console.error("AI route error:", error);
 
     return NextResponse.json(
-      { error: "AI request failed." },
+      {
+        error: "AI request failed.",
+      },
       { status: 500 }
     );
   }

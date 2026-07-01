@@ -36,9 +36,9 @@ function ToolbarButton({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded border px-2 py-1 text-sm font-medium hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`rounded border px-2 py-1 text-sm font-medium hover:bg-[#EEF8FF] disabled:cursor-not-allowed disabled:opacity-50 ${
         active
-          ? "border-blue-600 bg-blue-600 text-white"
+          ? "border-blue-600 bg-[#8ED4FF] text-[#1C1F23] text-white"
           : "border-slate-300 bg-white text-slate-700"
       }`}
     >
@@ -368,9 +368,9 @@ export default function RichTextEditor({
       />
 
       {aiSuggestions && (
-        <div className="border-t bg-blue-50 p-4">
+        <div className="border-t bg-[#EEF8FF] p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-semibold text-blue-900">AI Suggestions</h3>
+            <h3 className="font-semibold text-[#1C1F23]">AI Suggestions</h3>
 
             <button
               type="button"

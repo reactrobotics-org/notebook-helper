@@ -179,7 +179,7 @@ export default function ManageImagesPage() {
             </p>
             <Link
               href="/images/new"
-              className="mt-4 inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              className="mt-4 inline-block rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA]"
             >
               Add Image
             </Link>
@@ -293,7 +293,7 @@ export default function ManageImagesPage() {
                         type="button"
                         onClick={() => saveChanges(entry)}
                         disabled={savingId === entry.id}
-                        className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                        className="rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA] disabled:opacity-50"
                       >
                         {savingId === entry.id ? "Saving..." : "Save Changes"}
                       </button>

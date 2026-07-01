@@ -4,14 +4,28 @@
   --background: #ffffff;
   --foreground: #171717;
 }
-
+/*
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+*/
 
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* REACT Theme */
+  --color-react-blue: #8ED4FF;
+  --color-react-blue-dark: #74C7FA;
+  --color-react-dark: #1C1F23;
+  --color-react-gray: #D9E0E6;
+  --color-react-light: #F5F7FA;
+}
 body {
   background: var(--background);
   color: var(--foreground);

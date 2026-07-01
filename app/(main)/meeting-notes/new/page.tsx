@@ -17,7 +17,6 @@ export default function NewMeetingNotePage() {
   const [attendees, setAttendees] = useState("");
   const [workedOn, setWorkedOn] = useState("");
   const [actionItems, setActionItems] = useState("");
-  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -62,7 +61,6 @@ export default function NewMeetingNotePage() {
       attendees,
       worked_on: workedOn,
       action_items: actionItems,
-      notes,
     });
 
     if (error) {
@@ -154,20 +152,11 @@ export default function NewMeetingNotePage() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block font-medium">Additional Notes</label>
-            <RichTextEditor
-              value={notes}
-              onChange={setNotes}
-              placeholder="Anything else worth documenting"
-            />
-          </div>
-
           <button
             type="button"
             onClick={saveMeetingNote}
             disabled={saving}
-            className="rounded bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded bg-[#8ED4FF] text-[#1C1F23] px-5 py-2 text-white hover:bg-[#74C7FA] disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Meeting Note"}
           </button>

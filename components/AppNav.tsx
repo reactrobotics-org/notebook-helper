@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 
@@ -34,65 +35,101 @@ export default async function AppNav() {
     user?.user_metadata?.full_name ?? user?.email ?? "Not signed in";
 
   return (
-    <header className="border-b bg-white text-slate-900">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="text-xl font-bold text-slate-900">
-            Notebook Helper
+    <header className="border-b border-slate-300 bg-white shadow-sm">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-8">
+
+        {/* Left Side */}
+
+        <div className="flex items-center gap-10">
+
+          <Link href="/dashboard">
+            <Image
+              src="/react-logo.png"
+              alt="REACT"
+              width={150}
+              height={60}
+              className="h-14 w-auto"
+              priority
+            />
           </Link>
 
-          <nav className="flex items-center gap-4 text-sm text-slate-700">
-            <Link href="/dashboard" className="hover:underline">
+          <nav className="flex items-center gap-8 text-base font-medium">
+
+            <Link
+              href="/dashboard"
+              className="text-black transition hover:text-[#8ED4FF]"
+            >
               Dashboard
             </Link>
 
             <div className="group relative">
-              <Link href="/images" className="hover:underline">
+
+              <Link
+                href="/images"
+                className="text-black transition hover:text-[#8ED4FF]"
+              >
                 Images ▾
               </Link>
 
-              <div className="absolute left-0 z-50 hidden min-w-44 rounded border bg-white py-2 shadow-lg group-hover:block">
+              <div className="absolute left-0 z-50 hidden w-52 rounded-xl border border-slate-200 bg-white py-2 shadow-xl group-hover:block">
+
                 <Link
                   href="/images"
-                  className="block px-4 py-2 text-slate-700 hover:bg-slate-100"
+                  className="block px-4 py-2 hover:bg-slate-100"
                 >
                   View Images
                 </Link>
 
                 <Link
                   href="/images/new"
-                  className="block px-4 py-2 text-slate-700 hover:bg-slate-100"
+                  className="block px-4 py-2 hover:bg-slate-100"
                 >
                   Add Image
                 </Link>
 
                 <Link
                   href="/images/manage"
-                  className="block px-4 py-2 text-slate-700 hover:bg-slate-100"
+                  className="block px-4 py-2 hover:bg-slate-100"
                 >
                   Manage Images
                 </Link>
+
               </div>
+
             </div>
 
-            <Link href="/meeting-notes" className="hover:underline">
+            <Link
+              href="/meeting-notes"
+              className="text-black transition hover:text-[#8ED4FF]"
+            >
               Meeting Notes
             </Link>
 
-            <Link href="/teams" className="hover:underline">
+            <Link
+              href="/teams"
+              className="text-black transition hover:text-[#8ED4FF]"
+            >
               Team
             </Link>
+
           </nav>
+
         </div>
 
+        {/* Right Side */}
+
         <div className="text-right text-sm text-slate-600">
+
           <div>
-            You are: <strong>{displayName}</strong>
+            <strong>User:</strong> {displayName}
           </div>
+
           <div>
-            Team Number: <strong>{teamNumber}</strong>
+            <strong>Team:</strong> {teamNumber}
           </div>
+
         </div>
+
       </div>
     </header>
   );
