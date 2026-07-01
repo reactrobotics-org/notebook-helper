@@ -26,10 +26,16 @@ type Profile = {
   role: Role | null;
   team_id: string | null;
   created_at: string | null;
-  teams?: {
-    team_number: string | null;
-    team_name: string | null;
-  } | null;
+  teams?:
+  | {
+      team_number: string | null;
+      team_name: string | null;
+    }
+  | {
+      team_number: string | null;
+      team_name: string | null;
+    }[]
+  | null;
 };
 
 const roles: Role[] = ["Student", "Mentor", "Admin"];
@@ -59,11 +65,13 @@ async function getCurrentAdmin() {
 }
 
 function formatTeam(profile: Profile) {
-  if (!profile.teams?.team_number) return "Not assigned";
+  const team = Array.isArray(profile.teams)
+    ? profile.teams[0]
+    : profile.teams;
 
-  return `${profile.teams.team_number}${
-    profile.teams.team_name ? ` - ${profile.teams.team_name}` : ""
-  }`;
+  if (!team?.team_number) return "Not assigned";
+
+  return `${team.team_number}${team.team_name ? ` - ${team.team_name}` : ""}`;
 }
 
 function formatDate(value: string | null) {

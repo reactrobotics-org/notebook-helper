@@ -158,10 +158,14 @@ export default async function ImagesPage({
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {images?.map((entry) => {
-            const submittedBy =
-              entry.profiles?.full_name ??
-              entry.profiles?.email ??
-              "Unknown user";
+            const profile = Array.isArray(entry.profiles)
+  ? entry.profiles[0]
+  : entry.profiles;
+
+const submittedBy =
+  profile?.full_name ??
+  profile?.email ??
+  "Unknown user";
 
             return (
               <div

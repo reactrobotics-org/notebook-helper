@@ -90,27 +90,30 @@ export default function RichTextEditor({
   const currentEditor = editor;
 
   function setLink() {
-    const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("Enter a URL", previousUrl || "");
+      if (!editor) return;
 
-    if (url === null) {
-      return;
+      const previousUrl = editor.getAttributes("link").href;
+      const url = window.prompt("Enter a URL", previousUrl || "");
+
+      if (URL === null) {
+        return;
     }
 
-    if (url === "") {
-      editor.chain().focus().unsetLink().run();
-      return;
+      if (url === "") {
+        editor.chain().focus().unsetLink().run();
+        return;
     }
 
-    editor.chain().focus().setLink({ href: url }).run();
+    editor.chain().focus().setLink({ href: url as string }).run();
   }
 
   function addImage(imageUrl: string, width: ImageSize = "medium") {
+    if (!editor) return;
     let imageWidth = "500px";
 
-    if (width === "small") imageWidth = "300px";
-    if (width === "medium") imageWidth = "500px";
-    if (width === "large") imageWidth = "700px";
+    if (width === "small") imageWidth = "25%";
+    if (width === "medium") imageWidth = "50%";
+    if (width === "large") imageWidth = "75%";
     if (width === "full") imageWidth = "100%";
 
     editor
@@ -123,6 +126,7 @@ export default function RichTextEditor({
   }
 
   async function improveWriting() {
+    if (!editor) return;
     setAiLoading(true);
     setAiSuggestions("");
 
@@ -167,6 +171,7 @@ export default function RichTextEditor({
   }
 
   async function suggestDetails() {
+    if (!editor) return;
     setAiLoading(true);
     setAiSuggestions("");
 
