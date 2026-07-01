@@ -161,8 +161,9 @@ export default async function AdminUsersPage({
   ]);
 
   const teamList = (teams ?? []) as Team[];
+  const profileList = (profiles ?? []) as unknown as Profile[];
 
-  const userList = ((profiles ?? []) as unknown as Profile[]).filter((profile) => {
+  const userList = profileList.filter((profile) => {
     const role = profile.role ?? "Student";
     const searchText =
       `${profile.full_name ?? ""} ${profile.email ?? ""} ${formatTeam(profile)}`.toLowerCase();
@@ -175,7 +176,6 @@ export default async function AdminUsersPage({
         profile.team_id === teamFilter)
     );
   });
-  const profileList = (profiles ?? []) as unknown as Profile[];
   const totalUsers = profileList.length;
   const studentCount = profileList.filter(
     (profile) => !profile.role || profile.role === "Student"
