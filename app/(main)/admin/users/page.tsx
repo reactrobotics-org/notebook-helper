@@ -162,7 +162,7 @@ export default async function AdminUsersPage({
 
   const teamList = (teams ?? []) as Team[];
 
-  const userList = ((profiles ?? []) as Profile[]).filter((profile) => {
+  const userList = ((profiles ?? []) as unknown as Profile[]).filter((profile) => {
     const role = profile.role ?? "Student";
     const searchText =
       `${profile.full_name ?? ""} ${profile.email ?? ""} ${formatTeam(profile)}`.toLowerCase();
@@ -175,15 +175,15 @@ export default async function AdminUsersPage({
         profile.team_id === teamFilter)
     );
   });
-
-  const totalUsers = (profiles ?? []).length;
-  const studentCount = (profiles ?? []).filter(
+  const profileList = (profiles ?? []) as unknown as Profile[];
+  const totalUsers = profileList.length;
+  const studentCount = profileList.filter(
     (profile) => !profile.role || profile.role === "Student"
   ).length;
-  const mentorCount = (profiles ?? []).filter(
+  const mentorCount = profileList.filter(
     (profile) => profile.role === "Mentor"
   ).length;
-  const adminCount = (profiles ?? []).filter(
+  const adminCount = profileList.filter(
     (profile) => profile.role === "Admin"
   ).length;
 
