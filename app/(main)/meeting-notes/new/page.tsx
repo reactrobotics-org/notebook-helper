@@ -10,7 +10,6 @@ export default function NewMeetingNotePage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [title, setTitle] = useState("");
   const [meetingDate, setMeetingDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -47,11 +46,24 @@ export default function NewMeetingNotePage() {
       return;
     }
 
-    if (!title.trim()) {
-      setMessage("Please enter a title.");
+    if (!meetingDate) {
+      setMessage("Please choose a meeting date.");
       setSaving(false);
       return;
     }
+
+    // The meeting date IS the title now - format it the way a title
+    // should read, e.g. "July 2, 2026", instead of the raw yyyy-mm-dd
+    // value the date input gives us.
+    const title = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(`${meetingDate}T00:00:00Z`));
+
+    const displayName =
+      user.user_metadata?.full_name ?? user.email ?? "Unknown user";
 
     const { error } = await supabase.from("meeting_notes").insert({
       team_id: profile.team_id,
@@ -61,6 +73,8 @@ export default function NewMeetingNotePage() {
       attendees,
       worked_on: workedOn,
       action_items: actionItems,
+      updated_by_name: displayName,
+      updated_at: new Date().toISOString(),
     });
 
     if (error) {
@@ -99,16 +113,6 @@ export default function NewMeetingNotePage() {
         )}
 
         <div className="space-y-5">
-          <div>
-            <label className="mb-1 block font-medium">Title</label>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded border p-2"
-              placeholder="Example: Drive team practice"
-            />
-          </div>
-
           <div>
             <label className="mb-1 block font-medium">Meeting Date</label>
             <input

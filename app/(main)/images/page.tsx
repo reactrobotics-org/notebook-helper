@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function ImagesPage({
@@ -13,6 +14,14 @@ export default async function ImagesPage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const selectedCategory = params.category ?? "All";
   const selectedSubsystem = params.subsystem ?? "All";

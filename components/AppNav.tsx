@@ -1,6 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
+import TeamSwitcher from "@/components/TeamSwitcher";
+
+type TeamOption = {
+  id: string;
+  team_number: string;
+  team_name: string | null;
+};
 
 export default async function AppNav() {
   const supabase = await createClient();
@@ -11,6 +18,9 @@ export default async function AppNav() {
 
   let teamNumber = "Not Assigned";
   let isAdmin = false;
+  let isMentor = false;
+  let activeTeamId: string | null = null;
+  let mentorTeams: TeamOption[] = [];
 
   if (user) {
     const { data: profile } = await supabase
@@ -20,12 +30,33 @@ export default async function AppNav() {
       .single();
 
     isAdmin = (profile?.role ?? "").toLowerCase() === "admin";
+    isMentor = (profile?.role ?? "").toLowerCase() === "mentor";
+    activeTeamId = profile?.team_id ?? null;
 
-    if (profile?.team_id) {
+    if (isAdmin || isMentor) {
+      const { data: mentorTeamRows } = await supabase
+        .from("team_mentors")
+        .select(
+          `
+          teams (
+            id,
+            team_number,
+            team_name
+          )
+        `
+        )
+        .eq("mentor_id", user.id);
+
+      mentorTeams = (mentorTeamRows ?? [])
+        .map((row) => (Array.isArray(row.teams) ? row.teams[0] : row.teams))
+        .filter((team): team is TeamOption => Boolean(team));
+    }
+
+    if (activeTeamId) {
       const { data: team } = await supabase
         .from("teams")
         .select("team_number")
-        .eq("id", profile.team_id)
+        .eq("id", activeTeamId)
         .single();
 
       if (team?.team_number) {
@@ -97,9 +128,16 @@ export default async function AppNav() {
             <strong>User:</strong> {displayName}
           </div>
 
-          <div>
-            <strong>Team:</strong> {teamNumber}
-          </div>
+          {mentorTeams.length > 1 ? (
+            <div className="mt-1 flex items-center justify-end gap-2">
+              <strong>Team:</strong>
+              <TeamSwitcher teams={mentorTeams} activeTeamId={activeTeamId} />
+            </div>
+          ) : (
+            <div>
+              <strong>Team:</strong> {teamNumber}
+            </div>
+          )}
         </div>
       </div>
     </header>

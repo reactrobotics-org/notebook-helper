@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { createClient } from "@/utils/supabase/server";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -38,13 +39,23 @@ When reviewing entries:
 
 export async function POST(req: Request) {
   try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "You must be signed in to use this feature." },
+        { status: 401 }
+      );
+    }
+
     const { action, text } = await req.json();
 
     if (!text || typeof text !== "string") {
-      return NextResponse.json(
-        { error: "Text is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Text is required." }, { status: 400 });
     }
 
     let prompt = "";
@@ -116,10 +127,7 @@ Meeting Note:
 ${text}
 `;
     } else {
-      return NextResponse.json(
-        { error: "Unknown AI action." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Unknown AI action." }, { status: 400 });
     }
 
     const response = await client.responses.create({
