@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { Users } from "lucide-react";
+import Link from "next/link";
+import { Camera, NotebookPen, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
 type Profile = {
@@ -16,31 +16,20 @@ type Team = {
   team_number: string;
   team_name: string | null;
 };
-async function updateMyName(formData: FormData) {
-  "use server";
 
-  const supabase = await createClient();
+type RecentImage = {
+  id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type RecentNote = {
+  id: string;
+  title: string;
+  meeting_date: string;
+};
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const fullName = String(formData.get("full_name") ?? "").trim();
-
-  if (!fullName) return;
-
-  await supabase
-    .from("profiles")
-    .update({ full_name: fullName })
-    .eq("id", user.id);
-
-  revalidatePath("/teams");
-  revalidatePath("/dashboard");
-}
 export default async function TeamPage() {
   const supabase = await createClient();
 
@@ -64,9 +53,16 @@ export default async function TeamPage() {
 
   let team: Team | null = null;
   let teammates: Profile[] = [];
+  let recentImages: RecentImage[] = [];
+  let recentNotes: RecentNote[] = [];
 
   if (profile.team_id) {
-    const [{ data: teamData }, { data: teammateData }] = await Promise.all([
+    const [
+      { data: teamData },
+      { data: teammateData },
+      { data: imageData },
+      { data: noteData },
+    ] = await Promise.all([
       supabase
         .from("teams")
         .select("id, team_number, team_name")
@@ -78,10 +74,26 @@ export default async function TeamPage() {
         .select("id, full_name, email, role, team_id")
         .eq("team_id", profile.team_id)
         .order("full_name", { ascending: true }),
+
+      supabase
+        .from("image_entries")
+        .select("id, title, description, created_at")
+        .eq("team_id", profile.team_id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+
+      supabase
+        .from("meeting_notes")
+        .select("id, title, meeting_date")
+        .eq("team_id", profile.team_id)
+        .order("meeting_date", { ascending: false })
+        .limit(5),
     ]);
 
     team = teamData as Team | null;
     teammates = (teammateData ?? []) as Profile[];
+    recentImages = (imageData ?? []) as RecentImage[];
+    recentNotes = (noteData ?? []) as RecentNote[];
   }
 
   return (
@@ -100,27 +112,7 @@ export default async function TeamPage() {
           </h2>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-    Name
-  </p>
-
-  <form action={updateMyName} className="mt-2 flex gap-2">
-    <input
-      name="full_name"
-      defaultValue={profile.full_name || ""}
-      placeholder={profile.email || user.email || "Enter your name"}
-      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2"
-    />
-
-    <button
-      type="submit"
-      className="rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black"
-    >
-      Save
-    </button>
-  </form>
-</div>
+            <InfoCard label="Name" value={profile.full_name || "No name"} />
             <InfoCard label="Email" value={profile.email || user.email || "No email"} />
             <InfoCard label="Role" value={profile.role || "student"} />
           </div>
@@ -180,7 +172,7 @@ export default async function TeamPage() {
                     className="rounded-xl border border-slate-200 p-4"
                   >
                     <p className="font-bold text-[#1C1F23]">
-                      {teammate.full_name || teammate.email || "No name"}
+                      {teammate.full_name || "No name"}
                     </p>
 
                     <p className="text-sm text-slate-600">
@@ -192,6 +184,90 @@ export default async function TeamPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-8 grid gap-6 md:grid-cols-2">
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
+                      <Camera size={20} /> Recent Images
+                    </h3>
+
+                    <Link
+                      href="/images"
+                      className="text-sm font-semibold text-[#1C1F23] hover:underline"
+                    >
+                      View all
+                    </Link>
+                  </div>
+
+                  {recentImages.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No images uploaded yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentImages.map((image) => (
+                        <div
+                          key={image.id}
+                          className="rounded-xl border border-slate-200 p-4"
+                        >
+                          <p className="font-semibold text-[#1C1F23]">
+                            {image.title}
+                          </p>
+
+                          {image.description && (
+                            <p className="mt-1 line-clamp-2 text-sm text-slate-600">
+                              {image.description}
+                            </p>
+                          )}
+
+                          <p className="mt-2 text-xs text-slate-500">
+                            {new Date(image.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
+                      <NotebookPen size={20} /> Recent Meeting Notes
+                    </h3>
+
+                    <Link
+                      href="/meeting-notes"
+                      className="text-sm font-semibold text-[#1C1F23] hover:underline"
+                    >
+                      View all
+                    </Link>
+                  </div>
+
+                  {recentNotes.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No meeting notes yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentNotes.map((note) => (
+                        <div
+                          key={note.id}
+                          className="rounded-xl border border-slate-200 p-4"
+                        >
+                          <p className="font-semibold text-[#1C1F23]">
+                            {note.title}
+                          </p>
+
+                          <p className="mt-2 text-xs text-slate-500">
+                            {note.meeting_date}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
