@@ -34,7 +34,7 @@ export default function LoginPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage("Check your email for a sign-in link.");
+      setMessage("Check your email for a sign-in link sent from Supabase Auth.");
     }
 
     setSending(false);
