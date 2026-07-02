@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import AdminNav from "@/components/AdminNav";
+import FeedbackButton from "@/components/FeedbackButton";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -66,6 +67,7 @@ export default async function AdminLayout({
       </div>
 
       <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
+      <FeedbackButton />
     </main>
   );
 }

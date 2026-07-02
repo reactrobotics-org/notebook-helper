@@ -7,6 +7,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 const links = [
@@ -14,6 +15,11 @@ const links = [
     href: "/admin",
     label: "Dashboard",
     icon: LayoutDashboard,
+  },
+  {
+  href: "/admin/feedback",
+  label: "Feedback",
+  icon: MessageSquare,
   },
   {
     href: "/admin/users",
