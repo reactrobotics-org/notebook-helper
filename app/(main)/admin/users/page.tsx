@@ -126,6 +126,23 @@ async function removeUserFromTeam(formData: FormData) {
   revalidatePath("/admin");
 }
 
+async function deleteUser(formData: FormData) {
+  "use server";
+
+  const { supabase, user } = await getCurrentAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+
+  if (!userId) return;
+
+  // Do not allow an admin to delete themselves
+  if (userId === user.id) return;
+
+  await supabase.from("profiles").delete().eq("id", userId);
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
@@ -382,6 +399,17 @@ export default async function AdminUsersPage({
                             className="text-sm font-semibold text-red-600 hover:underline"
                           >
                             Remove from team
+                          </button>
+                        </form>
+                      )}
+                      {profile.id !== undefined && (
+                        <form action={deleteUser} className="mt-2">
+                          <input type="hidden" name="user_id" value={profile.id} />
+                          <button
+                            type="submit"
+                            className="text-sm font-semibold text-red-700 hover:underline"
+                          >
+                            Delete user
                           </button>
                         </form>
                       )}

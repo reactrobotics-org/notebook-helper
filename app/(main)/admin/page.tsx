@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   ClipboardList,
   ImageIcon,
@@ -11,7 +12,7 @@ import { createClient } from "@/utils/supabase/server";
 export default async function AdminPage() {
   const supabase = await createClient();
 
-  const [usersResult, teamsResult, imagesResult, notesResult] =
+  const [usersResult, teamsResult, imagesResult, notesResult, unassignedResult] =
     await Promise.all([
       supabase.from("profiles").select("id", {
         count: "exact",
@@ -29,7 +30,13 @@ export default async function AdminPage() {
         count: "exact",
         head: true,
       }),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .is("team_id", null),
     ]);
+
+  const unassignedCount = unassignedResult.count ?? 0;
 
   const cards = [
     {
@@ -64,6 +71,29 @@ export default async function AdminPage() {
           Quick overview of users, teams, images, and meeting notes.
         </p>
       </div>
+
+      {unassignedCount > 0 && (
+        <Link
+          href="/admin/users"
+          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-amber-300 bg-amber-50 p-5 shadow-sm transition hover:bg-amber-100"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-900">
+              <AlertTriangle size={20} />
+            </div>
+
+            <p className="font-semibold text-amber-900">
+              {unassignedCount} user{unassignedCount === 1 ? "" : "s"} not yet
+              assigned to a team
+            </p>
+          </div>
+
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-amber-900">
+            Open User Management
+            <ArrowRight size={16} />
+          </span>
+        </Link>
+      )}
 
       <div className="mb-8 grid gap-6 md:grid-cols-4">
         {cards.map((card) => {

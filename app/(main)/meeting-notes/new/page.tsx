@@ -153,6 +153,8 @@ export default function NewMeetingNotePage() {
               value={actionItems}
               onChange={setActionItems}
               placeholder="What needs to happen next?"
+              enableImages={false}
+              enableAI={false}
             />
           </div>
 

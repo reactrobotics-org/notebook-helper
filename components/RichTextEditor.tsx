@@ -15,6 +15,8 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  enableImages?: boolean;
+  enableAI?: boolean;
 };
 
 function ToolbarButton({
@@ -55,6 +57,8 @@ export default function RichTextEditor({
   value,
   onChange,
   placeholder = "Write your notes here...",
+  enableImages = true,
+  enableAI = true,
 }: Props) {
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -303,29 +307,35 @@ export default function RichTextEditor({
           onClick={setLink}
         />
 
-        <ToolbarButton
-          label="Image"
-          title="Insert Image"
-          onClick={() => setImagePickerOpen(true)}
-        />
+        {enableImages && (
+          <ToolbarButton
+            label="Image"
+            title="Insert Image"
+            onClick={() => setImagePickerOpen(true)}
+          />
+        )}
 
         <Separator />
 
-        <ToolbarButton
-          label={aiLoading ? "Working..." : "Improve"}
-          title="Improve Writing"
-          disabled={aiLoading}
-          onClick={improveWriting}
-        />
+        {enableAI && (
+          <>
+            <ToolbarButton
+              label={aiLoading ? "Working..." : "Improve"}
+              title="Improve Writing"
+              disabled={aiLoading}
+              onClick={improveWriting}
+            />
 
-        <ToolbarButton
-          label={aiLoading ? "Working..." : "Suggest"}
-          title="Suggest Missing Engineering Details"
-          disabled={aiLoading}
-          onClick={suggestDetails}
-        />
+            <ToolbarButton
+              label={aiLoading ? "Working..." : "Suggest"}
+              title="Suggest Missing Engineering Details"
+              disabled={aiLoading}
+              onClick={suggestDetails}
+            />
 
-        <Separator />
+            <Separator />
+          </>
+        )}
 
         <ToolbarButton
           label="↶"

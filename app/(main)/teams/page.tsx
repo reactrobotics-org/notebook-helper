@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
@@ -15,7 +16,31 @@ type Team = {
   team_number: string;
   team_name: string | null;
 };
+async function updateMyName(formData: FormData) {
+  "use server";
 
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const fullName = String(formData.get("full_name") ?? "").trim();
+
+  if (!fullName) return;
+
+  await supabase
+    .from("profiles")
+    .update({ full_name: fullName })
+    .eq("id", user.id);
+
+  revalidatePath("/teams");
+  revalidatePath("/dashboard");
+}
 export default async function TeamPage() {
   const supabase = await createClient();
 
@@ -75,7 +100,27 @@ export default async function TeamPage() {
           </h2>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <InfoCard label="Name" value={profile.full_name || "No name"} />
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+    Name
+  </p>
+
+  <form action={updateMyName} className="mt-2 flex gap-2">
+    <input
+      name="full_name"
+      defaultValue={profile.full_name || ""}
+      placeholder={profile.email || user.email || "Enter your name"}
+      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2"
+    />
+
+    <button
+      type="submit"
+      className="rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black"
+    >
+      Save
+    </button>
+  </form>
+</div>
             <InfoCard label="Email" value={profile.email || user.email || "No email"} />
             <InfoCard label="Role" value={profile.role || "student"} />
           </div>
@@ -135,7 +180,7 @@ export default async function TeamPage() {
                     className="rounded-xl border border-slate-200 p-4"
                   >
                     <p className="font-bold text-[#1C1F23]">
-                      {teammate.full_name || "No name"}
+                      {teammate.full_name || teammate.email || "No name"}
                     </p>
 
                     <p className="text-sm text-slate-600">

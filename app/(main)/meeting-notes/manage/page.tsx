@@ -302,6 +302,8 @@ function ManageMeetingNotesContent() {
                         updateLocalNote(note.id, "action_items", value)
                       }
                       placeholder="What needs to happen next?"
+                      enableImages={false}
+                      enableAI={false}
                     />
                   </div>
 
