@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import TeamSwitcher from "@/components/TeamSwitcher";
+import FeedbackButton from "@/components/FeedbackButton";
 
 type TeamOption = {
   id: string;
@@ -123,7 +124,10 @@ export default async function AppNav() {
           </nav>
         </div>
 
-        <div className="text-right text-sm text-slate-600">
+          <div className="relative flex items-center gap-5 text-right text-sm text-slate-600">
+            <FeedbackButton />
+
+            <div>
           <div>
             <strong>User:</strong> {displayName}
           </div>
@@ -138,6 +142,7 @@ export default async function AppNav() {
               <strong>Team:</strong> {teamNumber}
             </div>
           )}
+          </div>
         </div>
       </div>
     </header>

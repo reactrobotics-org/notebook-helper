@@ -94,13 +94,13 @@ export default function FeedbackButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#1C1F23] shadow-lg ring-1 ring-slate-200 hover:bg-slate-50"
+        className="rounded-lg bg-[#1C1F23] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black"
       >
         Feedback
       </button>
 
       {open && (
-        <div className="fixed bottom-16 right-5 z-50 w-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+        <div className="absolute right-0 top-12 z-50 w-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold text-[#1C1F23]">Feedback</h2>
 

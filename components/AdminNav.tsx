@@ -16,12 +16,7 @@ const links = [
     label: "Dashboard",
     icon: LayoutDashboard,
   },
-  {
-  href: "/admin/feedback",
-  label: "Feedback",
-  icon: MessageSquare,
-  },
-  {
+   {
     href: "/admin/users",
     label: "Users",
     icon: Users,
@@ -35,6 +30,11 @@ const links = [
     href: "/admin/activity",
     label: "Activity",
     icon: BarChart3,
+  },
+  {
+  href: "/admin/feedback",
+  label: "Feedback",
+  icon: MessageSquare,
   },
 ];
 
