@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import TeamSwitcher from "@/components/TeamSwitcher";
 import FeedbackButton from "@/components/FeedbackButton";
+import MobileNav from "@/components/MobileNav";
 
 type TeamOption = {
   id: string;
@@ -71,7 +72,7 @@ export default async function AppNav() {
 
   return (
     <header className="border-b border-slate-300 bg-white shadow-sm">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-8">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-10">
           <Link href="/dashboard">
             <Image
@@ -84,7 +85,7 @@ export default async function AppNav() {
             />
           </Link>
 
-          <nav className="flex items-center gap-8 text-base font-medium">
+          <nav className="hidden items-center gap-8 text-base font-medium md:flex">
             <Link
               href="/dashboard"
               className="text-black transition hover:text-[#8ED4FF]"
@@ -124,7 +125,7 @@ export default async function AppNav() {
           </nav>
         </div>
 
-          <div className="relative flex items-center gap-5 text-right text-sm text-slate-600">
+          <div className="relative hidden items-center gap-5 text-right text-sm text-slate-600 md:flex">
             <FeedbackButton />
 
             <div>
@@ -144,6 +145,14 @@ export default async function AppNav() {
           )}
           </div>
         </div>
+
+        <MobileNav
+          isAdmin={isAdmin}
+          displayName={displayName}
+          teamNumber={teamNumber}
+          mentorTeams={mentorTeams}
+          activeTeamId={activeTeamId}
+        />
       </div>
     </header>
   );
