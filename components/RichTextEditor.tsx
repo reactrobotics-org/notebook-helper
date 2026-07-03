@@ -9,6 +9,26 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import TiptapImage from "@tiptap/extension-image";
 import ImagePicker from "@/components/ImagePicker";
 
+const ResizableImage = TiptapImage.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: "50%",
+        parseHTML: (element) =>
+          element.style.width || element.getAttribute("width") || "50%",
+        renderHTML: (attributes) => {
+          if (!attributes.width) return {};
+
+          return {
+            style: `width: ${attributes.width}; max-width: 100%; height: auto;`,
+          };
+        },
+      },
+    };
+  },
+});
+
 type ImageSize = "small" | "medium" | "large" | "full";
 
 type Props = {
@@ -63,7 +83,8 @@ export default function RichTextEditor({
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState("");
-  const editor = useEditor({
+  const [imageSelected, setImageSelected] = useState(false);
+    const editor = useEditor({
     extensions: [
       StarterKit,
       Underline,
@@ -71,7 +92,7 @@ export default function RichTextEditor({
         openOnClick: false,
       }),
       HorizontalRule,
-      TiptapImage,
+      ResizableImage,
       ],
     content: value,
     immediatelyRender: false,
@@ -84,6 +105,9 @@ export default function RichTextEditor({
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    onSelectionUpdate: ({ editor }) => {
+      setImageSelected(editor.isActive("image"));
     },
   });
 
@@ -111,22 +135,31 @@ export default function RichTextEditor({
     editor.chain().focus().setLink({ href: url as string }).run();
   }
 
-  function addImage(imageUrl: string, width: ImageSize = "medium") {
-    if (!editor) return;
-    let imageWidth = "500px";
+  function widthForSize(size: ImageSize) {
+    if (size === "small") return "25%";
+    if (size === "medium") return "35%";
+    if (size === "large") return "50%";
+    return "75%";
+  }
 
-    if (width === "small") imageWidth = "25%";
-    if (width === "medium") imageWidth = "50%";
-    if (width === "large") imageWidth = "75%";
-    if (width === "full") imageWidth = "100%";
+  function addImage(imageUrl: string, size: ImageSize = "medium") {
+    if (!editor) return;
 
     editor
       .chain()
       .focus()
-      .insertContent(
-        `<img src="${imageUrl}" style="width:${imageWidth};max-width:100%;height:auto;" />`
-      )
+      .insertContent({
+        type: "image",
+        attrs: { src: imageUrl, width: widthForSize(size) },
+      })
       .run();
+  }
+
+  function setImageWidth(size: ImageSize) {
+    if (!editor) return;
+
+    editor.chain().focus().updateAttributes("image", { width: widthForSize(size) }).run();
+  
   }
 
   async function improveWriting() {
@@ -349,6 +382,41 @@ export default function RichTextEditor({
           onClick={() => editor.chain().focus().redo().run()}
         />
       </div>
+      {imageSelected && (
+        <div className="flex flex-wrap items-center gap-2 border-b bg-[#EEF8FF] p-2">
+          <span className="text-sm font-medium text-slate-700">
+            Image size:
+          </span>
+
+          <ToolbarButton
+            label="S"
+            title="Small"
+            active={editor.getAttributes("image").width === "25%"}
+            onClick={() => setImageWidth("small")}
+          />
+
+          <ToolbarButton
+            label="M"
+            title="Medium"
+            active={editor.getAttributes("image").width === "50%"}
+            onClick={() => setImageWidth("medium")}
+          />
+
+          <ToolbarButton
+            label="L"
+            title="Large"
+            active={editor.getAttributes("image").width === "75%"}
+            onClick={() => setImageWidth("large")}
+          />
+
+          <ToolbarButton
+            label="Full"
+            title="Full Width"
+            active={editor.getAttributes("image").width === "100%"}
+            onClick={() => setImageWidth("full")}
+          />
+        </div>
+      )}
 
       <EditorContent
         editor={editor}
@@ -379,6 +447,9 @@ export default function RichTextEditor({
           [&_img]:max-w-full
           [&_img]:rounded
           [&_img]:border
+          [&_.ProseMirror-selectednode]:outline
+          [&_.ProseMirror-selectednode]:outline-2
+          [&_.ProseMirror-selectednode]:outline-[#8ED4FF]
         "
       />
 

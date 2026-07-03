@@ -1,8 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { Camera } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { compressImage } from "@/utils/compressImage";
 
 type ImageEntry = {
   id: string;
@@ -21,8 +24,11 @@ type Props = {
 
 export default function ImagePicker({ open, onClose, onSelect }: Props) {
   const supabase = createClient();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -69,6 +75,77 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
     setLoading(false);
   }
 
+  async function handleCapture(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError("");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setUploadError("You must be signed in to add a photo.");
+      setUploading(false);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("team_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.team_id) {
+      setUploadError("Your account is not assigned to a team yet.");
+      setUploading(false);
+      return;
+    }
+
+    const compressedFile = await compressImage(file);
+
+    const fileExt = compressedFile.name.split(".").pop();
+    const fileName = `${profile.team_id}/${uuidv4()}.${fileExt}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from("images")
+      .upload(fileName, compressedFile);
+
+    if (uploadErr) {
+      setUploadError(`Upload error: ${uploadErr.message}`);
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("images")
+      .getPublicUrl(fileName);
+
+    const { error: insertErr } = await supabase.from("image_entries").insert({
+      team_id: profile.team_id,
+      created_by: user.id,
+      title: "Meeting Note Photo",
+      image_url: publicUrlData.publicUrl,
+    });
+
+    if (insertErr) {
+      setUploadError(`Database error: ${insertErr.message}`);
+      setUploading(false);
+      return;
+    }
+
+    setUploading(false);
+
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+    }
+
+    onSelect(publicUrlData.publicUrl, "medium");
+    onClose();
+  }
+
   if (!open) return null;
 
   return (
@@ -85,6 +162,36 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
             Close
           </button>
         </div>
+
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleCapture}
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black disabled:opacity-50"
+          >
+            <Camera size={18} />
+            {uploading ? "Uploading..." : "Take a Photo"}
+          </button>
+
+          <p className="text-sm text-slate-600">
+            Snap a new photo and it will be added here and to your team&apos;s
+            Images gallery.
+          </p>
+        </div>
+
+        {uploadError && (
+          <p className="mb-4 text-sm text-red-600">{uploadError}</p>
+        )}
 
         {loading && <p>Loading images...</p>}
 

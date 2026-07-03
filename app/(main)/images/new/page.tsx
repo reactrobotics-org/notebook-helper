@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { v4 as uuidv4 } from "uuid";
 import { createClient } from "@/utils/supabase/client";
+import { compressImage } from "@/utils/compressImage";
 
 type ImageForm = {
   image: FileList;
@@ -54,12 +55,19 @@ export default function NewImagePage() {
       return;
     }
 
-    const fileExt = file.name.split(".").pop();
+    setMessage("Compressing image...");
+    const compressedFile = await compressImage(file);
+
+    const originalKB = (file.size / 1024).toFixed(0);
+    const compressedKB = (compressedFile.size / 1024).toFixed(0);
+
+    const fileExt = compressedFile.name.split(".").pop();
     const fileName = `${profile.team_id}/${uuidv4()}.${fileExt}`;
 
+    setMessage(`Saving (${originalKB}KB → ${compressedKB}KB)...`);
     const { error: uploadError } = await supabase.storage
       .from("images")
-      .upload(fileName, file);
+      .upload(fileName, compressedFile);
 
     if (uploadError) {
       setMessage(`Upload error: ${uploadError.message}`);
