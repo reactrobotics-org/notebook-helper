@@ -16,8 +16,9 @@ type Props = {
   isAdmin: boolean;
   displayName: string;
   teamNumber: string;
-  mentorTeams: TeamOption[];
+  switcherTeams: TeamOption[];
   activeTeamId: string | null;
+  showTeamSwitcher: boolean;
 };
 
 const links = [
@@ -31,8 +32,9 @@ export default function MobileNav({
   isAdmin,
   displayName,
   teamNumber,
-  mentorTeams,
+  switcherTeams,
   activeTeamId,
+  showTeamSwitcher,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -77,10 +79,14 @@ export default function MobileNav({
               <strong>User:</strong> {displayName}
             </div>
 
-            {mentorTeams.length > 1 ? (
+            {showTeamSwitcher ? (
               <div className="mt-2 flex items-center gap-2">
                 <strong>Team:</strong>
-                <TeamSwitcher teams={mentorTeams} activeTeamId={activeTeamId} />
+                <TeamSwitcher
+                  teams={switcherTeams}
+                  activeTeamId={activeTeamId}
+                  allowAllTeams={isAdmin}
+                />
               </div>
             ) : (
               <div className="mt-1">

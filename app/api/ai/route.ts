@@ -6,6 +6,8 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const AI_COOLDOWN_SECONDS = 67;
+
 const BASE_PROMPT = `
 You are an expert VEX Robotics engineering notebook mentor.
 
@@ -50,6 +52,34 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("last_ai_request_at")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.last_ai_request_at) {
+      const secondsSinceLast = (Date.now() - new Date(profile.last_ai_request_at).getTime()) / 1000;
+
+      if (secondsSinceLast < AI_COOLDOWN_SECONDS) {
+        const waitSeconds = Math.ceil(AI_COOLDOWN_SECONDS - secondsSinceLast);
+
+        return NextResponse.json(
+          {
+            error: `Please wait ${waitSeconds} more second${
+              waitSeconds === 1 ? "" : "s"
+            } before requesting AI help again.`,
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    await supabase
+      .from("profiles")
+      .update({ last_ai_request_at: new Date().toISOString() })
+      .eq("id", user.id);
 
     const { action, text } = await req.json();
 

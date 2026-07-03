@@ -22,7 +22,7 @@ export default async function AppNav() {
   let isAdmin = false;
   let isMentor = false;
   let activeTeamId: string | null = null;
-  let mentorTeams: TeamOption[] = [];
+  let switcherTeams: TeamOption[] = [];
 
   if (user) {
     const { data: profile } = await supabase
@@ -35,7 +35,16 @@ export default async function AppNav() {
     isMentor = (profile?.role ?? "").toLowerCase() === "mentor";
     activeTeamId = profile?.team_id ?? null;
 
-    if (isAdmin || isMentor) {
+    if (isAdmin) {
+      // Admins can switch to any team in the system, not just ones
+      // they're explicitly listed as a mentor for.
+      const { data: teamRows } = await supabase
+        .from("teams")
+        .select("id, team_number, team_name")
+        .order("team_number", { ascending: true });
+
+      switcherTeams = (teamRows ?? []) as TeamOption[];
+    } else if (isMentor) {
       const { data: mentorTeamRows } = await supabase
         .from("team_mentors")
         .select(
@@ -49,7 +58,7 @@ export default async function AppNav() {
         )
         .eq("mentor_id", user.id);
 
-      mentorTeams = (mentorTeamRows ?? [])
+      switcherTeams = (mentorTeamRows ?? [])
         .map((row) => (Array.isArray(row.teams) ? row.teams[0] : row.teams))
         .filter((team): team is TeamOption => Boolean(team));
     }
@@ -64,11 +73,17 @@ export default async function AppNav() {
       if (team?.team_number) {
         teamNumber = team.team_number;
       }
+    } else if (isAdmin) {
+      teamNumber = "All Teams";
     }
   }
 
   const displayName =
     user?.user_metadata?.full_name ?? user?.email ?? "Not signed in";
+
+  const showTeamSwitcher = isAdmin
+    ? switcherTeams.length > 0
+    : switcherTeams.length > 1;
 
   return (
     <header className="border-b border-slate-300 bg-white shadow-sm">
@@ -133,10 +148,14 @@ export default async function AppNav() {
             <strong>User:</strong> {displayName}
           </div>
 
-          {mentorTeams.length > 1 ? (
+          {showTeamSwitcher ? (
             <div className="mt-1 flex items-center justify-end gap-2">
               <strong>Team:</strong>
-              <TeamSwitcher teams={mentorTeams} activeTeamId={activeTeamId} />
+              <TeamSwitcher
+                teams={switcherTeams}
+                activeTeamId={activeTeamId}
+                allowAllTeams={isAdmin}
+              />
             </div>
           ) : (
             <div>
@@ -150,8 +169,9 @@ export default async function AppNav() {
           isAdmin={isAdmin}
           displayName={displayName}
           teamNumber={teamNumber}
-          mentorTeams={mentorTeams}
+          switcherTeams={switcherTeams}
           activeTeamId={activeTeamId}
+          showTeamSwitcher={showTeamSwitcher}
         />
       </div>
     </header>

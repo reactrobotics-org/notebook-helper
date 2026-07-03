@@ -9,6 +9,19 @@ import {
   CheckSquare,
 } from "lucide-react";
 
+type TeamInfo = {
+  team_number: string | null;
+  team_name: string | null;
+} | null;
+
+function teamLabel(team: TeamInfo | TeamInfo[] | null | undefined): string | null {
+  const resolved = Array.isArray(team) ? team[0] : team;
+  if (!resolved?.team_number) return null;
+  return resolved.team_name
+    ? `${resolved.team_number} - ${resolved.team_name}`
+    : resolved.team_number;
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
@@ -22,9 +35,13 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("team_id")
+    .select("team_id, role")
     .eq("id", user.id)
     .single();
+
+  const activeTeamId = profile?.team_id ?? null;
+  const isAdmin = (profile?.role ?? "").toLowerCase() === "admin";
+  const viewingAllTeams = isAdmin && !activeTeamId;
 
   let imageCount = 0;
   let meetingCount = 0;
@@ -34,7 +51,47 @@ export default async function DashboardPage() {
   let recentMeetings: any[] = [];
   let recentImages: any[] = [];
 
-  if (profile?.team_id) {
+  if (activeTeamId || viewingAllTeams) {
+    let imageCountQuery = supabase
+      .from("image_entries")
+      .select("*", { count: "exact", head: true });
+
+    let meetingCountQuery = supabase
+      .from("meeting_notes")
+      .select("*", { count: "exact", head: true });
+
+    let memberCountQuery = supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true });
+
+    let recentMeetingsQuery = supabase
+      .from("meeting_notes")
+      .select(
+        viewingAllTeams
+          ? "id,title,meeting_date,teams(team_number,team_name)"
+          : "id,title,meeting_date"
+      )
+      .order("meeting_date", { ascending: false })
+      .limit(5);
+
+    let recentImagesQuery = supabase
+      .from("image_entries")
+      .select(
+        viewingAllTeams
+          ? "id,description,created_at,teams(team_number,team_name)"
+          : "id,description,created_at"
+      )
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!viewingAllTeams) {
+      imageCountQuery = imageCountQuery.eq("team_id", activeTeamId);
+      meetingCountQuery = meetingCountQuery.eq("team_id", activeTeamId);
+      memberCountQuery = memberCountQuery.eq("team_id", activeTeamId);
+      recentMeetingsQuery = recentMeetingsQuery.eq("team_id", activeTeamId);
+      recentImagesQuery = recentImagesQuery.eq("team_id", activeTeamId);
+    }
+
     const [
       { count: images },
       { count: meetings },
@@ -42,34 +99,11 @@ export default async function DashboardPage() {
       { data: meetingsData },
       { data: imagesData },
     ] = await Promise.all([
-      supabase
-        .from("images")
-        .select("*", { count: "exact", head: true })
-        .eq("team_id", profile.team_id),
-
-      supabase
-        .from("meeting_notes")
-        .select("*", { count: "exact", head: true })
-        .eq("team_id", profile.team_id),
-
-      supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true })
-        .eq("team_id", profile.team_id),
-
-      supabase
-        .from("meeting_notes")
-        .select("id,title,meeting_date")
-        .eq("team_id", profile.team_id)
-        .order("meeting_date", { ascending: false })
-        .limit(5),
-
-      supabase
-        .from("images")
-        .select("id,description,created_at")
-        .eq("team_id", profile.team_id)
-        .order("created_at", { ascending: false })
-        .limit(5),
+      imageCountQuery,
+      meetingCountQuery,
+      memberCountQuery,
+      recentMeetingsQuery,
+      recentImagesQuery,
     ]);
 
     imageCount = images ?? 0;
@@ -95,6 +129,9 @@ export default async function DashboardPage() {
           <p className="mt-2 text-lg text-slate-500">
             Welcome back,{" "}
             {user.user_metadata?.full_name ?? user.email}
+            {viewingAllTeams && (
+              <span className="ml-2 text-slate-400">· Viewing All Teams</span>
+            )}
           </p>
         </div>
 
@@ -185,9 +222,10 @@ export default async function DashboardPage() {
                 </p>
               ) : (
                 recentMeetings.map((note) => (
-                  <div
+                  <Link
                     key={note.id}
-                    className="rounded-xl border p-4 hover:bg-slate-50"
+                    href={`/meeting-notes/manage?id=${note.id}`}
+                    className="block rounded-xl border p-4 transition hover:bg-slate-50"
                   >
                     <div className="font-semibold">
                       {note.title}
@@ -195,8 +233,11 @@ export default async function DashboardPage() {
 
                     <div className="text-sm text-slate-500">
                       {note.meeting_date}
+                      {viewingAllTeams && teamLabel(note.teams) && (
+                        <span> · {teamLabel(note.teams)}</span>
+                      )}
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
 
@@ -218,9 +259,10 @@ export default async function DashboardPage() {
                 </p>
               ) : (
                 recentImages.map((image) => (
-                  <div
+                  <Link
                     key={image.id}
-                    className="rounded-xl border p-4 hover:bg-slate-50"
+                    href={`/images#image-${image.id}`}
+                    className="block rounded-xl border p-4 transition hover:bg-slate-50"
                   >
                     <div className="font-semibold">
                       {image.description || "No Description"}
@@ -228,8 +270,11 @@ export default async function DashboardPage() {
 
                     <div className="text-sm text-slate-500">
                       {new Date(image.created_at).toLocaleDateString()}
+                      {viewingAllTeams && teamLabel(image.teams) && (
+                        <span> · {teamLabel(image.teams)}</span>
+                      )}
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
 

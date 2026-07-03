@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import MeetingNoteCard from "@/components/MeetingNoteCard";
 
-export default async function MeetingNotesPage() {
+const PAGE_SIZE = 10;
+
+export default async function MeetingNotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -13,7 +21,21 @@ export default async function MeetingNotesPage() {
     redirect("/login");
   }
 
-  const { data: notes, error } = await supabase
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("team_id, role")
+    .eq("id", user.id)
+    .single();
+
+  const activeTeamId = profile?.team_id ?? null;
+  const isAdmin = (profile?.role ?? "").toLowerCase() === "admin";
+  const viewingAllTeams = isAdmin && !activeTeamId;
+
+  const currentPage = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  const from = (currentPage - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  let query = supabase
     .from("meeting_notes")
     .select(
       `
@@ -28,9 +50,20 @@ export default async function MeetingNotesPage() {
         full_name,
         email
       )
-    `
+    `,
+      { count: "exact" }
     )
-    .order("meeting_date", { ascending: false });
+    .order("meeting_date", { ascending: false })
+    .range(from, to);
+
+  if (!viewingAllTeams) {
+    query = query.eq("team_id", activeTeamId ?? "");
+  }
+
+  const { data: notes, error, count } = await query;
+
+  const totalCount = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
@@ -57,75 +90,74 @@ export default async function MeetingNotesPage() {
           </div>
         )}
 
-        {!error && (!notes || notes.length === 0) && (
+        {!activeTeamId && !isAdmin && (
           <div className="rounded bg-white p-8 text-center shadow">
-            <p className="text-gray-600">No meeting notes have been added yet.</p>
+            <p className="text-gray-600">
+              Your account is not assigned to a team yet.
+            </p>
           </div>
         )}
 
+        {(activeTeamId || isAdmin) &&
+          !error &&
+          (!notes || notes.length === 0) && (
+            <div className="rounded bg-white p-8 text-center shadow">
+              <p className="text-gray-600">
+                No meeting notes have been added yet.
+              </p>
+            </div>
+          )}
+
         <div className="space-y-6">
           {notes?.map((note) => {
-          const profile = Array.isArray(note.profiles)
-            ? note.profiles[0]
-            : note.profiles;
+            const profile = Array.isArray(note.profiles)
+              ? note.profiles[0]
+              : note.profiles;
 
-          const submittedBy =
-            profile?.full_name ?? profile?.email ?? "Unknown user";
-          
+            const submittedBy =
+              profile?.full_name ?? profile?.email ?? "Unknown user";
+
             return (
-              <div key={note.id} className="rounded-lg bg-white p-6 shadow">
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-semibold">{note.title}</h2>
-                    <p className="text-sm text-slate-500">
-                      Meeting Date:{" "}
-                      {new Date(note.meeting_date).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  <Link
-                    href={`/meeting-notes/manage?id=${note.id}`}
-                    className="rounded border px-3 py-2 text-sm hover:bg-slate-100"
-                  >
-                    Edit
-                  </Link>
-                </div>
-
-                {note.attendees && (
-                  <div className="mb-3">
-                    <h3 className="font-medium">Attendees</h3>
-                    <p className="text-sm text-slate-700">{note.attendees}</p>
-                  </div>
-                )}
-
-                {note.worked_on && (
-                  <div className="mb-3">
-                    <h3 className="font-medium">What We Worked On</h3>
-                    <div
-                      className="mt-1 text-sm text-slate-700 [&_p]:mb-2 [&_a]:text-blue-600 [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5"
-                      dangerouslySetInnerHTML={{ __html: note.worked_on }}
-                    />
-                  </div>
-                )}
-
-                {note.action_items && (
-                  <div className="mb-3">
-                    <h3 className="font-medium">Action Items</h3>
-                    <div
-                      className="mt-1 text-sm text-slate-700 [&_p]:mb-2 [&_a]:text-blue-600 [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5"
-                      dangerouslySetInnerHTML={{ __html: note.action_items }}
-                    />
-                  </div>
-                )}
-
-                <div className="mt-4 border-t pt-3 text-xs text-slate-500">
-                  <p>Submitted by: {submittedBy}</p>
-                  <p>{new Date(note.created_at).toLocaleString()}</p>
-                </div>
-              </div>
+              <MeetingNoteCard
+                key={note.id}
+                note={note}
+                submittedBy={submittedBy}
+              />
             );
           })}
         </div>
+
+        {totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-between">
+            <Link
+              href={`/meeting-notes?page=${currentPage - 1}`}
+              aria-disabled={currentPage <= 1}
+              className={`rounded border px-4 py-2 text-sm font-semibold ${
+                currentPage <= 1
+                  ? "pointer-events-none opacity-40"
+                  : "hover:bg-white"
+              }`}
+            >
+              ← Newer
+            </Link>
+
+            <p className="text-sm text-slate-600">
+              Page {currentPage} of {totalPages}
+            </p>
+
+            <Link
+              href={`/meeting-notes?page=${currentPage + 1}`}
+              aria-disabled={currentPage >= totalPages}
+              className={`rounded border px-4 py-2 text-sm font-semibold ${
+                currentPage >= totalPages
+                  ? "pointer-events-none opacity-40"
+                  : "hover:bg-white"
+              }`}
+            >
+              Older →
+            </Link>
+          </div>
+        )}
       </div>
     </main>
   );

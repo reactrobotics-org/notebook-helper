@@ -13,16 +13,23 @@ type TeamOption = {
 type Props = {
   teams: TeamOption[];
   activeTeamId: string | null;
+  allowAllTeams?: boolean;
 };
 
-export default function TeamSwitcher({ teams, activeTeamId }: Props) {
+export default function TeamSwitcher({
+  teams,
+  activeTeamId,
+  allowAllTeams = false,
+}: Props) {
   const supabase = createClient();
   const router = useRouter();
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState("");
 
   async function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const newTeamId = event.target.value;
+    const rawValue = event.target.value;
+    const newTeamId = rawValue === "" ? null : rawValue;
+
     setSwitching(true);
     setError("");
 
@@ -49,6 +56,8 @@ export default function TeamSwitcher({ teams, activeTeamId }: Props) {
         disabled={switching}
         className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-medium text-[#1C1F23] disabled:opacity-50"
       >
+        {allowAllTeams && <option value="">All Teams</option>}
+
         {teams.map((team) => (
           <option key={team.id} value={team.id}>
             {team.team_number}

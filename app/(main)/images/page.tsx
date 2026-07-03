@@ -23,13 +23,21 @@ export default async function ImagesPage({
     redirect("/login");
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("team_id, role")
+    .eq("id", user.id)
+    .single();
+
+  const activeTeamId = profile?.team_id ?? null;
+  const isAdmin = (profile?.role ?? "").toLowerCase() === "admin";
+  const viewingAllTeams = isAdmin && !activeTeamId;
+
   const selectedCategory = params.category ?? "All";
   const selectedSubsystem = params.subsystem ?? "All";
   const selectedSort = params.sort ?? "newest";
 
-  let query = supabase
-    .from("image_entries")
-    .select(`
+  let query = supabase.from("image_entries").select(`
       id,
       title,
       description,
@@ -42,6 +50,10 @@ export default async function ImagesPage({
         email
       )
     `);
+
+  if (!viewingAllTeams) {
+    query = query.eq("team_id", activeTeamId ?? "");
+  }
 
   if (selectedCategory !== "All") {
     query = query.eq("category", selectedCategory);
@@ -159,27 +171,36 @@ export default async function ImagesPage({
           </div>
         )}
 
-        {!error && (!images || images.length === 0) && (
+        {!activeTeamId && !isAdmin && (
           <div className="rounded bg-white p-8 text-center shadow">
-            <p className="text-gray-600">No images match those filters.</p>
+            <p className="text-gray-600">
+              Your account is not assigned to a team yet.
+            </p>
           </div>
         )}
+
+        {(activeTeamId || isAdmin) &&
+          !error &&
+          (!images || images.length === 0) && (
+            <div className="rounded bg-white p-8 text-center shadow">
+              <p className="text-gray-600">No images match those filters.</p>
+            </div>
+          )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {images?.map((entry) => {
             const profile = Array.isArray(entry.profiles)
-  ? entry.profiles[0]
-  : entry.profiles;
+              ? entry.profiles[0]
+              : entry.profiles;
 
-const submittedBy =
-  profile?.full_name ??
-  profile?.email ??
-  "Unknown user";
+            const submittedBy =
+              profile?.full_name ?? profile?.email ?? "Unknown user";
 
             return (
               <div
                 key={entry.id}
-                className="overflow-hidden rounded-lg bg-white shadow"
+                id={`image-${entry.id}`}
+                className="scroll-mt-8 overflow-hidden rounded-lg bg-white shadow target:ring-4 target:ring-[#8ED4FF] target:ring-offset-2"
               >
                 <Image
                   src={entry.image_url}

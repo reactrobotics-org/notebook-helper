@@ -1,5 +1,3 @@
-// Production build test 2
-
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -12,6 +10,8 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+
+const PAGE_SIZE = 20;
 
 type Role = "Student" | "Mentor" | "Admin";
 
@@ -146,20 +146,28 @@ async function deleteUser(formData: FormData) {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; role?: string; team?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    role?: string;
+    team?: string;
+    page?: string;
+  }>;
 }) {
   const { supabase } = await getCurrentAdmin();
   const params = await searchParams;
 
-  const search = String(params?.q ?? "").trim().toLowerCase();
+  const search = String(params?.q ?? "").trim();
   const roleFilter = String(params?.role ?? "all");
   const teamFilter = String(params?.team ?? "all");
+  const currentPage = Math.max(1, parseInt(params?.page ?? "1", 10) || 1);
 
-  const [{ data: profiles }, { data: teams }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select(
-        `
+  const from = (currentPage - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  let profilesQuery = supabase
+    .from("profiles")
+    .select(
+      `
         id,
         email,
         full_name,
@@ -170,41 +178,71 @@ export default async function AdminUsersPage({
           team_number,
           team_name
         )
-      `
-      )
-      .order("full_name", { ascending: true }),
+      `,
+      { count: "exact" }
+    )
+    .order("full_name", { ascending: true })
+    .range(from, to);
+
+  if (search) {
+    profilesQuery = profilesQuery.or(
+      `full_name.ilike.%${search}%,email.ilike.%${search}%`
+    );
+  }
+
+  if (roleFilter !== "all") {
+    profilesQuery = profilesQuery.eq("role", roleFilter);
+  }
+
+  if (teamFilter === "none") {
+    profilesQuery = profilesQuery.is("team_id", null);
+  } else if (teamFilter !== "all") {
+    profilesQuery = profilesQuery.eq("team_id", teamFilter);
+  }
+
+  const [
+    { data: profiles, count: filteredCount },
+    { data: teams },
+    { count: totalUsersCount },
+    { count: studentCount },
+    { count: mentorCount },
+    { count: adminCount },
+  ] = await Promise.all([
+    profilesQuery,
     supabase
       .from("teams")
       .select("id, team_number, team_name")
       .order("team_number", { ascending: true }),
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .or("role.is.null,role.eq.Student"),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "Mentor"),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "Admin"),
   ]);
 
   const teamList = (teams ?? []) as Team[];
-  const profileList = (profiles ?? []) as unknown as Profile[];
+  const userList = (profiles ?? []) as unknown as Profile[];
 
-  const userList = profileList.filter((profile) => {
-    const role = profile.role ?? "Student";
-    const searchText =
-      `${profile.full_name ?? ""} ${profile.email ?? ""} ${formatTeam(profile)}`.toLowerCase();
+  const totalUsers = totalUsersCount ?? 0;
+  const matchingCount = filteredCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
 
-    return (
-      (!search || searchText.includes(search)) &&
-      (roleFilter === "all" || role === roleFilter) &&
-      (teamFilter === "all" ||
-        (teamFilter === "none" && !profile.team_id) ||
-        profile.team_id === teamFilter)
-    );
-  });
-  const totalUsers = profileList.length;
-  const studentCount = profileList.filter(
-    (profile) => !profile.role || profile.role === "Student"
-  ).length;
-  const mentorCount = profileList.filter(
-    (profile) => profile.role === "Mentor"
-  ).length;
-  const adminCount = profileList.filter(
-    (profile) => profile.role === "Admin"
-  ).length;
+  function buildPageHref(page: number) {
+    const qs = new URLSearchParams();
+    if (search) qs.set("q", search);
+    if (roleFilter !== "all") qs.set("role", roleFilter);
+    if (teamFilter !== "all") qs.set("team", teamFilter);
+    qs.set("page", String(page));
+    return `/admin/users?${qs.toString()}`;
+  }
 
   return (
     <main className="min-h-screen bg-[#F5F7FA] p-8">
@@ -233,9 +271,9 @@ export default async function AdminUsersPage({
 
         <div className="mb-8 grid gap-6 md:grid-cols-4">
           <StatCard icon={<Users size={22} />} label="Total Users" value={totalUsers} />
-          <StatCard icon={<GraduationCap size={22} />} label="Students" value={studentCount} />
-          <StatCard icon={<ClipboardCheck size={22} />} label="Mentors" value={mentorCount} />
-          <StatCard icon={<ShieldCheck size={22} />} label="Admins" value={adminCount} />
+          <StatCard icon={<GraduationCap size={22} />} label="Students" value={studentCount ?? 0} />
+          <StatCard icon={<ClipboardCheck size={22} />} label="Mentors" value={mentorCount ?? 0} />
+          <StatCard icon={<ShieldCheck size={22} />} label="Admins" value={adminCount ?? 0} />
         </div>
 
         <section className="mb-8 rounded-2xl bg-white p-6 shadow">
@@ -252,7 +290,7 @@ export default async function AdminUsersPage({
                 <input
                   name="q"
                   defaultValue={params?.q ?? ""}
-                  placeholder="Search by name, email, or team"
+                  placeholder="Search by name or email"
                   className="w-full rounded-lg border border-slate-300 p-3 pl-10"
                 />
               </div>
@@ -317,7 +355,9 @@ export default async function AdminUsersPage({
         <section className="rounded-2xl bg-white p-6 shadow">
           <h2 className="mb-1 text-2xl font-bold text-[#1C1F23]">Users</h2>
           <p className="mb-5 text-slate-600">
-            Showing {userList.length} of {totalUsers} users.
+            Showing {userList.length} of {matchingCount} matching user
+            {matchingCount === 1 ? "" : "s"} (page {currentPage} of{" "}
+            {totalPages}).
           </p>
 
           <div className="overflow-x-auto">
@@ -419,6 +459,38 @@ export default async function AdminUsersPage({
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <Link
+                href={buildPageHref(currentPage - 1)}
+                aria-disabled={currentPage <= 1}
+                className={`rounded border px-4 py-2 text-sm font-semibold ${
+                  currentPage <= 1
+                    ? "pointer-events-none opacity-40"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                ← Previous
+              </Link>
+
+              <p className="text-sm text-slate-600">
+                Page {currentPage} of {totalPages}
+              </p>
+
+              <Link
+                href={buildPageHref(currentPage + 1)}
+                aria-disabled={currentPage >= totalPages}
+                className={`rounded border px-4 py-2 text-sm font-semibold ${
+                  currentPage >= totalPages
+                    ? "pointer-events-none opacity-40"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                Next →
+              </Link>
+            </div>
+          )}
         </section>
       </div>
     </main>
