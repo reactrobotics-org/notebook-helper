@@ -79,6 +79,7 @@ export default async function TeamPage() {
         .from("image_entries")
         .select("id, title, description, created_at")
         .eq("team_id", profile.team_id)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5),
 

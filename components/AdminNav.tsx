@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Users,
   MessageSquare,
+  Trash2,
 } from "lucide-react";
 
 const links = [
@@ -35,6 +36,11 @@ const links = [
   href: "/admin/feedback",
   label: "Feedback",
   icon: MessageSquare,
+  },
+  {
+    href: "/admin/deleted-images",
+    label: "Deleted Images",
+    icon: Trash2,
   },
 ];
 

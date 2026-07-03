@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 type ImageEntry = {
@@ -14,10 +15,6 @@ type ImageEntry = {
   subsystem: string | null;
   created_by: string;
   created_at: string;
-};
-
-type DeletedImageEntry = ImageEntry & {
-  deleted_at: string;
 };
 
 const categories = [
@@ -42,16 +39,15 @@ const subsystems = [
   "Other",
 ];
 
-export default function ManageImagesPage() {
+function ManageImagesContent() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const focusedId = searchParams.get("id");
 
   const [images, setImages] = useState<ImageEntry[]>([]);
-  const [deletedImages, setDeletedImages] = useState<DeletedImageEntry[]>([]);
-  const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -74,55 +70,32 @@ export default function ManageImagesPage() {
       return;
     }
 
-    const [{ data: activeData, error: activeError }, { data: deletedData }] =
-      await Promise.all([
-        supabase
-          .from("image_entries")
-          .select(
-            `
-            id,
-            title,
-            description,
-            image_url,
-            category,
-            subsystem,
-            created_by,
-            created_at
-          `
-          )
-          .eq("created_by", user.id)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false }),
+    const { data, error } = await supabase
+      .from("image_entries")
+      .select(
+        `
+        id,
+        title,
+        description,
+        image_url,
+        category,
+        subsystem,
+        created_by,
+        created_at
+      `
+      )
+      .eq("created_by", user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
 
-        supabase
-          .from("image_entries")
-          .select(
-            `
-            id,
-            title,
-            description,
-            image_url,
-            category,
-            subsystem,
-            created_by,
-            created_at,
-            deleted_at
-          `
-          )
-          .eq("created_by", user.id)
-          .not("deleted_at", "is", null)
-          .order("deleted_at", { ascending: false }),
-      ]);
-
-    if (activeError) {
-      console.error("Error loading images:", activeError);
-      setMessage(`Error loading images: ${activeError.message}`);
+    if (error) {
+      console.error("Error loading images:", error);
+      setMessage(`Error loading images: ${error.message}`);
       setLoading(false);
       return;
     }
 
-    setImages(activeData || []);
-    setDeletedImages((deletedData as DeletedImageEntry[]) || []);
+    setImages(data || []);
     setLoading(false);
   }
 
@@ -171,7 +144,7 @@ export default function ManageImagesPage() {
 
   async function deleteImage(entry: ImageEntry) {
     const confirmed = window.confirm(
-      "Delete this image? It will move to Recently Deleted, where you can restore it."
+      "Delete this image? An admin will be able to restore it if needed."
     );
 
     if (!confirmed) return;
@@ -179,11 +152,12 @@ export default function ManageImagesPage() {
     setDeletingId(entry.id);
     setMessage("");
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("image_entries")
       .update({ deleted_at: new Date().toISOString() })
       .eq("id", entry.id)
-      .eq("created_by", entry.created_by);
+      .eq("created_by", entry.created_by)
+      .select();
 
     setDeletingId(null);
 
@@ -193,30 +167,20 @@ export default function ManageImagesPage() {
       return;
     }
 
-    setMessage("Image deleted. You can restore it from Recently Deleted.");
-    loadImages();
-  }
-
-  async function restoreImage(entry: DeletedImageEntry) {
-    setRestoringId(entry.id);
-    setMessage("");
-
-    const { error } = await supabase
-      .from("image_entries")
-      .update({ deleted_at: null })
-      .eq("id", entry.id)
-      .eq("created_by", entry.created_by);
-
-    setRestoringId(null);
-
-    if (error) {
-      console.error("Error restoring image:", error);
-      setMessage(`Error restoring image: ${error.message}`);
+    if (!data || data.length === 0) {
+      console.error(
+        "Delete returned no rows — likely blocked by a Row Level Security policy."
+      );
+      setMessage(
+        "Nothing was updated. This usually means a Supabase Row Level Security policy is blocking the update — check the UPDATE policy on image_entries."
+      );
       return;
     }
 
-    setMessage("Image restored.");
-    loadImages();
+    setImages((current) => current.filter((image) => image.id !== entry.id));
+    setMessage(
+      "Image deleted. If you deleted this by mistake, ask an admin to restore it."
+    );
   }
 
   if (loading) {
@@ -229,14 +193,22 @@ export default function ManageImagesPage() {
     );
   }
 
+  const visibleImages = focusedId
+    ? images.filter((image) => image.id === focusedId)
+    : images;
+
   return (
     <main className="min-h-screen bg-slate-100 p-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Manage Images</h1>
+            <h1 className="text-3xl font-bold">
+              {focusedId ? "Edit Image" : "Manage Images"}
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Update the information for images you uploaded.
+              {focusedId
+                ? "Update the information for this image."
+                : "Update the information for images you uploaded."}
             </p>
           </div>
 
@@ -254,7 +226,20 @@ export default function ManageImagesPage() {
           </div>
         )}
 
-        {images.length === 0 ? (
+        {focusedId && visibleImages.length === 0 ? (
+          <div className="rounded bg-white p-8 text-center shadow">
+            <p className="text-slate-600">
+              That image was not found, or you don&apos;t have permission to
+              edit it.
+            </p>
+            <Link
+              href="/images/manage"
+              className="mt-4 inline-block rounded border bg-white px-4 py-2 hover:bg-slate-50"
+            >
+              View All My Images
+            </Link>
+          </div>
+        ) : visibleImages.length === 0 ? (
           <div className="rounded bg-white p-8 text-center shadow">
             <p className="text-slate-600">
               You have not uploaded any images yet.
@@ -268,7 +253,7 @@ export default function ManageImagesPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {images.map((entry) => (
+            {visibleImages.map((entry) => (
               <div key={entry.id} className="rounded-lg bg-white p-4 shadow">
                 <div className="grid gap-6 md:grid-cols-[260px_1fr]">
                   <Image
@@ -397,57 +382,23 @@ export default function ManageImagesPage() {
             ))}
           </div>
         )}
-
-        {deletedImages.length > 0 && (
-          <div className="mt-10">
-            <button
-              type="button"
-              onClick={() => setShowDeleted((prev) => !prev)}
-              className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900"
-            >
-              {showDeleted ? "Hide" : "Show"} Recently Deleted (
-              {deletedImages.length})
-            </button>
-
-            {showDeleted && (
-              <div className="space-y-4">
-                {deletedImages.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center gap-4 rounded-lg border border-dashed border-slate-300 bg-white p-4 opacity-75"
-                  >
-                    <Image
-                      src={entry.image_url}
-                      alt={entry.title || "Deleted image"}
-                      width={100}
-                      height={75}
-                      className="h-16 w-24 rounded border object-cover"
-                    />
-
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {entry.title || "Untitled"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Deleted {new Date(entry.deleted_at).toLocaleString()}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => restoreImage(entry)}
-                      disabled={restoringId === entry.id}
-                      className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      {restoringId === entry.id ? "Restoring..." : "Restore"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </main>
+  );
+}
+
+export default function ManageImagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-100 p-8">
+          <div className="mx-auto max-w-5xl rounded bg-white p-8 shadow">
+            <p className="text-slate-700">Loading images...</p>
+          </div>
+        </main>
+      }
+    >
+      <ManageImagesContent />
+    </Suspense>
   );
 }

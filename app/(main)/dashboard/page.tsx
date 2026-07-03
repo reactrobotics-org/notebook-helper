@@ -54,7 +54,8 @@ export default async function DashboardPage() {
   if (activeTeamId || viewingAllTeams) {
     let imageCountQuery = supabase
       .from("image_entries")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null);
 
     let meetingCountQuery = supabase
       .from("meeting_notes")
@@ -81,6 +82,7 @@ export default async function DashboardPage() {
           ? "id,description,created_at,teams(team_number,team_name)"
           : "id,description,created_at"
       )
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(5);
 

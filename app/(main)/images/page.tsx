@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function ImagesPage({
@@ -37,7 +38,9 @@ export default async function ImagesPage({
   const selectedSubsystem = params.subsystem ?? "All";
   const selectedSort = params.sort ?? "newest";
 
-  let query = supabase.from("image_entries").select(`
+  let query = supabase
+    .from("image_entries")
+    .select(`
       id,
       title,
       description,
@@ -45,11 +48,13 @@ export default async function ImagesPage({
       category,
       subsystem,
       created_at,
+      created_by,
       profiles (
         full_name,
         email
       )
-    `);
+    `)
+    .is("deleted_at", null);
 
   if (!viewingAllTeams) {
     query = query.eq("team_id", activeTeamId ?? "");
@@ -101,12 +106,21 @@ export default async function ImagesPage({
             <h1 className="text-3xl font-bold">Images</h1>
           </div>
 
-          <Link
-            href="/images/new"
-            className="rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA]"
-          >
-            Add Image
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/images/manage"
+              className="rounded border bg-white px-4 py-2 hover:bg-slate-50"
+            >
+              Manage My Images
+            </Link>
+
+            <Link
+              href="/images/new"
+              className="rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA]"
+            >
+              Add Image
+            </Link>
+          </div>
         </div>
 
         <form className="mb-6 grid gap-4 rounded bg-white p-4 shadow md:grid-cols-4">
@@ -196,19 +210,26 @@ export default async function ImagesPage({
             const submittedBy =
               profile?.full_name ?? profile?.email ?? "Unknown user";
 
-            return (
-              <div
-                key={entry.id}
-                id={`image-${entry.id}`}
-                className="scroll-mt-8 overflow-hidden rounded-lg bg-white shadow target:ring-4 target:ring-[#8ED4FF] target:ring-offset-2"
-              >
-                <Image
-                  src={entry.image_url}
-                  alt={entry.title}
-                  width={600}
-                  height={400}
-                  className="h-56 w-full object-cover"
-                />
+            const isOwnImage = entry.created_by === user.id;
+
+            const cardBody = (
+              <>
+                <div className="relative">
+                  <Image
+                    src={entry.image_url}
+                    alt={entry.title}
+                    width={600}
+                    height={400}
+                    className="h-56 w-full object-cover"
+                  />
+
+                  {isOwnImage && (
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#1C1F23] shadow">
+                      <Pencil size={12} />
+                      Edit
+                    </span>
+                  )}
+                </div>
 
                 <div className="p-4">
                   <h2 className="text-xl font-semibold">{entry.title}</h2>
@@ -224,6 +245,25 @@ export default async function ImagesPage({
                     <p>{new Date(entry.created_at).toLocaleString()}</p>
                   </div>
                 </div>
+              </>
+            );
+
+            return isOwnImage ? (
+              <Link
+                key={entry.id}
+                id={`image-${entry.id}`}
+                href={`/images/manage?id=${entry.id}`}
+                className="scroll-mt-8 block overflow-hidden rounded-lg bg-white shadow transition hover:shadow-lg target:ring-4 target:ring-[#8ED4FF] target:ring-offset-2"
+              >
+                {cardBody}
+              </Link>
+            ) : (
+              <div
+                key={entry.id}
+                id={`image-${entry.id}`}
+                className="scroll-mt-8 overflow-hidden rounded-lg bg-white shadow target:ring-4 target:ring-[#8ED4FF] target:ring-offset-2"
+              >
+                {cardBody}
               </div>
             );
           })}
