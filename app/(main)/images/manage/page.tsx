@@ -17,6 +17,8 @@ type ImageEntry = {
   created_at: string;
 };
 
+const PAGE_SIZE = 10;
+
 const categories = [
   "Brainstorm",
   "Design",
@@ -43,8 +45,13 @@ function ManageImagesContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const focusedId = searchParams.get("id");
+  const currentPage = Math.max(
+    1,
+    parseInt(searchParams.get("page") ?? "1", 10) || 1
+  );
 
   const [images, setImages] = useState<ImageEntry[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -53,7 +60,7 @@ function ManageImagesContent() {
   useEffect(() => {
     loadImages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [focusedId, currentPage]);
 
   async function loadImages() {
     setLoading(true);
@@ -70,7 +77,7 @@ function ManageImagesContent() {
       return;
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("image_entries")
       .select(
         `
@@ -82,11 +89,21 @@ function ManageImagesContent() {
         subsystem,
         created_by,
         created_at
-      `
+      `,
+        { count: "exact" }
       )
       .eq("created_by", user.id)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+      .is("deleted_at", null);
+
+    if (focusedId) {
+      query = query.eq("id", focusedId);
+    } else {
+      const from = (currentPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.order("created_at", { ascending: false }).range(from, to);
+    }
+
+    const { data, count, error } = await query;
 
     if (error) {
       console.error("Error loading images:", error);
@@ -96,6 +113,7 @@ function ManageImagesContent() {
     }
 
     setImages(data || []);
+    setTotalCount(count ?? 0);
     setLoading(false);
   }
 
@@ -193,9 +211,7 @@ function ManageImagesContent() {
     );
   }
 
-  const visibleImages = focusedId
-    ? images.filter((image) => image.id === focusedId)
-    : images;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
@@ -226,7 +242,7 @@ function ManageImagesContent() {
           </div>
         )}
 
-        {focusedId && visibleImages.length === 0 ? (
+        {focusedId && images.length === 0 ? (
           <div className="rounded bg-white p-8 text-center shadow">
             <p className="text-slate-600">
               That image was not found, or you don&apos;t have permission to
@@ -239,7 +255,7 @@ function ManageImagesContent() {
               View All My Images
             </Link>
           </div>
-        ) : visibleImages.length === 0 ? (
+        ) : images.length === 0 ? (
           <div className="rounded bg-white p-8 text-center shadow">
             <p className="text-slate-600">
               You have not uploaded any images yet.
@@ -253,7 +269,7 @@ function ManageImagesContent() {
           </div>
         ) : (
           <div className="space-y-6">
-            {visibleImages.map((entry) => (
+            {images.map((entry) => (
               <div key={entry.id} className="rounded-lg bg-white p-4 shadow">
                 <div className="grid gap-6 md:grid-cols-[260px_1fr]">
                   <Image
@@ -380,6 +396,38 @@ function ManageImagesContent() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {!focusedId && totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-between">
+            <Link
+              href={`/images/manage?page=${currentPage - 1}`}
+              aria-disabled={currentPage <= 1}
+              className={`rounded border bg-white px-4 py-2 text-sm font-semibold ${
+                currentPage <= 1
+                  ? "pointer-events-none opacity-40"
+                  : "hover:bg-slate-50"
+              }`}
+            >
+              ← Previous
+            </Link>
+
+            <p className="text-sm text-slate-600">
+              Page {currentPage} of {totalPages}
+            </p>
+
+            <Link
+              href={`/images/manage?page=${currentPage + 1}`}
+              aria-disabled={currentPage >= totalPages}
+              className={`rounded border bg-white px-4 py-2 text-sm font-semibold ${
+                currentPage >= totalPages
+                  ? "pointer-events-none opacity-40"
+                  : "hover:bg-slate-50"
+              }`}
+            >
+              Next →
+            </Link>
           </div>
         )}
       </div>

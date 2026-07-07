@@ -42,6 +42,11 @@ const links = [
     label: "Deleted Images",
     icon: Trash2,
   },
+  {
+    href: "/admin/deleted-meeting-notes",
+    label: "Deleted Meeting Notes",
+    icon: Trash2,
+  },
 ];
 
 export default function AdminNav() {

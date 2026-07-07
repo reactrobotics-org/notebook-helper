@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowLeft,
   ClipboardCheck,
   GraduationCap,
@@ -10,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 
 const PAGE_SIZE = 20;
 
@@ -100,13 +102,18 @@ async function updateUser(formData: FormData) {
 
   if (userId === user.id && role !== "Admin") return;
 
-  await supabase
+  const { data } = await supabase
     .from("profiles")
     .update({
       role,
       team_id: teamId,
     })
-    .eq("id", userId);
+    .eq("id", userId)
+    .select();
+
+  if (!data || data.length === 0) {
+    redirect("/admin/users?error=update_failed");
+  }
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
@@ -120,7 +127,15 @@ async function removeUserFromTeam(formData: FormData) {
 
   if (!userId) return;
 
-  await supabase.from("profiles").update({ team_id: null }).eq("id", userId);
+  const { data } = await supabase
+    .from("profiles")
+    .update({ team_id: null })
+    .eq("id", userId)
+    .select();
+
+  if (!data || data.length === 0) {
+    redirect("/admin/users?error=remove_failed");
+  }
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
@@ -137,7 +152,15 @@ async function deleteUser(formData: FormData) {
   // Do not allow an admin to delete themselves
   if (userId === user.id) return;
 
-  await supabase.from("profiles").delete().eq("id", userId);
+  const { data } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", userId)
+    .select();
+
+  if (!data || data.length === 0) {
+    redirect("/admin/users?error=delete_failed");
+  }
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
@@ -151,6 +174,7 @@ export default async function AdminUsersPage({
     role?: string;
     team?: string;
     page?: string;
+    error?: string;
   }>;
 }) {
   const { supabase } = await getCurrentAdmin();
@@ -268,6 +292,41 @@ export default async function AdminUsersPage({
             <ArrowLeft size={18} /> Back to Admin
           </Link>
         </div>
+
+        {params?.error === "update_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              Nothing was updated. This usually means a Supabase Row Level
+              Security policy is blocking the update — check the UPDATE
+              policy on profiles covers Admins for rows they didn&apos;t
+              create.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "remove_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              The user wasn&apos;t removed from their team. This usually
+              means a Supabase Row Level Security policy is blocking the
+              update — check the UPDATE policy on profiles covers Admins for
+              rows they didn&apos;t create.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "delete_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              Nothing was deleted. This usually means a Supabase Row Level
+              Security policy is blocking the delete — check that a DELETE
+              policy exists on profiles for Admins.
+            </p>
+          </div>
+        )}
 
         <div className="mb-8 grid gap-6 md:grid-cols-4">
           <StatCard icon={<Users size={22} />} label="Total Users" value={totalUsers} />
@@ -434,23 +493,27 @@ export default async function AdminUsersPage({
                       {profile.team_id && (
                         <form action={removeUserFromTeam} className="mt-2">
                           <input type="hidden" name="user_id" value={profile.id} />
-                          <button
-                            type="submit"
+                          <ConfirmSubmitButton
+                            confirmMessage={`Remove ${
+                              profile.full_name || profile.email || "this user"
+                            } from their team?`}
                             className="text-sm font-semibold text-red-600 hover:underline"
                           >
                             Remove from team
-                          </button>
+                          </ConfirmSubmitButton>
                         </form>
                       )}
                       {profile.id !== undefined && (
                         <form action={deleteUser} className="mt-2">
                           <input type="hidden" name="user_id" value={profile.id} />
-                          <button
-                            type="submit"
+                          <ConfirmSubmitButton
+                            confirmMessage={`Permanently delete ${
+                              profile.full_name || profile.email || "this user"
+                            }? This cannot be undone.`}
                             className="text-sm font-semibold text-red-700 hover:underline"
                           >
                             Delete user
-                          </button>
+                          </ConfirmSubmitButton>
                         </form>
                       )}
                     </td>

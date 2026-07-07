@@ -59,7 +59,8 @@ export default async function DashboardPage() {
 
     let meetingCountQuery = supabase
       .from("meeting_notes")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null);
 
     let memberCountQuery = supabase
       .from("profiles")
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
           ? "id,title,meeting_date,teams(team_number,team_name)"
           : "id,title,meeting_date"
       )
+      .is("deleted_at", null)
       .order("meeting_date", { ascending: false })
       .limit(5);
 

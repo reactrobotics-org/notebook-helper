@@ -53,6 +53,7 @@ export default async function MeetingNotesPage({
     `,
       { count: "exact" }
     )
+    .is("deleted_at", null)
     .order("meeting_date", { ascending: false })
     .range(from, to);
 

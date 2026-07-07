@@ -106,6 +106,7 @@ export default async function AdminActivityPage({
           teams ( team_number, team_name )
         `
         )
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(25),
     ]);

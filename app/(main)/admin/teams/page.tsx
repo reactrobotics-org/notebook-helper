@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowLeft,
   ClipboardList,
   Plus,
@@ -11,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 
 type Team = {
   id: string;
@@ -93,13 +95,18 @@ async function updateTeam(formData: FormData) {
 
   if (!teamId || !teamNumber) return;
 
-  await supabase
+  const { data } = await supabase
     .from("teams")
     .update({
       team_number: teamNumber,
       team_name: teamName || null,
     })
-    .eq("id", teamId);
+    .eq("id", teamId)
+    .select();
+
+  if (!data || data.length === 0) {
+    redirect("/admin/teams?error=update_failed");
+  }
 
   revalidatePath("/admin/teams");
   revalidatePath("/admin/users");
@@ -116,10 +123,16 @@ async function deleteTeam(formData: FormData) {
   if (!teamId) return;
 
   // Unassign any members first so no profile is left pointing at a
-  // team that no longer exists.
+  // team that no longer exists. Not every team has members, so a zero-row
+  // result here isn't itself an error — only the team delete below is
+  // checked.
   await supabase.from("profiles").update({ team_id: null }).eq("team_id", teamId);
 
-  await supabase.from("teams").delete().eq("id", teamId);
+  const { data } = await supabase.from("teams").delete().eq("id", teamId).select();
+
+  if (!data || data.length === 0) {
+    redirect("/admin/teams?error=delete_failed");
+  }
 
   revalidatePath("/admin/teams");
   revalidatePath("/admin/users");
@@ -148,15 +161,30 @@ async function assignMentor(formData: FormData) {
 
   if (role !== "mentor" && role !== "admin") return;
 
-  await supabase.from("team_mentors").insert({
-    team_id: teamId,
-    mentor_id: userId,
-  });
+  const { data: insertedRows } = await supabase
+    .from("team_mentors")
+    .insert({
+      team_id: teamId,
+      mentor_id: userId,
+    })
+    .select();
+
+  if (!insertedRows || insertedRows.length === 0) {
+    redirect("/admin/teams?error=assign_failed");
+  }
 
   // If this is the mentor's first team, make it their active team too,
   // so their dashboard/images/notes have something to show right away.
   if (!profile?.team_id) {
-    await supabase.from("profiles").update({ team_id: teamId }).eq("id", userId);
+    const { data } = await supabase
+      .from("profiles")
+      .update({ team_id: teamId })
+      .eq("id", userId)
+      .select();
+
+    if (!data || data.length === 0) {
+      redirect("/admin/teams?error=assign_failed");
+    }
   }
 
   revalidatePath("/admin/teams");
@@ -173,11 +201,16 @@ async function unassignMentor(formData: FormData) {
 
   if (!teamId || !userId) return;
 
-  await supabase
+  const { data: deletedRows } = await supabase
     .from("team_mentors")
     .delete()
     .eq("team_id", teamId)
-    .eq("mentor_id", userId);
+    .eq("mentor_id", userId)
+    .select();
+
+  if (!deletedRows || deletedRows.length === 0) {
+    redirect("/admin/teams?error=unassign_failed");
+  }
 
   // If that team was their active team, clear it so they're not left
   // pointing at a team they no longer mentor.
@@ -205,8 +238,13 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-export default async function AdminTeamsPage() {
+export default async function AdminTeamsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
   const { supabase } = await getCurrentAdmin();
+  const params = await searchParams;
 
   const [{ data: teams }, { data: profiles }, { data: teamMentorRows }] =
     await Promise.all([
@@ -280,6 +318,52 @@ export default async function AdminTeamsPage() {
             <ArrowLeft size={18} /> Back to Admin
           </Link>
         </div>
+
+        {params?.error === "update_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              Nothing was updated. This usually means a Supabase Row Level
+              Security policy is blocking the update — check the UPDATE
+              policy on teams covers Admins for rows they didn&apos;t
+              create.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "delete_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              Nothing was deleted. This usually means a Supabase Row Level
+              Security policy is blocking the delete — check that a DELETE
+              policy exists on teams for Admins.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "assign_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              The mentor wasn&apos;t assigned. This usually means a Supabase
+              Row Level Security policy is blocking the insert/update — check
+              the policies on team_mentors and profiles cover Admins for
+              rows they didn&apos;t create.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "unassign_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              The mentor wasn&apos;t removed. This usually means a Supabase
+              Row Level Security policy is blocking the delete — check that
+              a DELETE policy exists on team_mentors for Admins.
+            </p>
+          </div>
+        )}
 
         <div className="mb-8 grid gap-6 md:grid-cols-3">
           <StatCard
@@ -406,12 +490,14 @@ export default async function AdminTeamsPage() {
 
                     <form action={deleteTeam}>
                       <input type="hidden" name="team_id" value={team.id} />
-                      <button
-                        type="submit"
+                      <ConfirmSubmitButton
+                        confirmMessage={`Permanently delete team ${team.team_number}${
+                          team.team_name ? ` - ${team.team_name}` : ""
+                        }? Members will be unassigned. This cannot be undone.`}
                         className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 font-semibold text-red-600 hover:bg-red-50"
                       >
                         <Trash2 size={16} /> Delete
-                      </button>
+                      </ConfirmSubmitButton>
                     </form>
                   </div>
 
@@ -450,12 +536,14 @@ export default async function AdminTeamsPage() {
                                 name="user_id"
                                 value={mentor.id}
                               />
-                              <button
-                                type="submit"
+                              <ConfirmSubmitButton
+                                confirmMessage={`Remove ${
+                                  mentor.full_name || mentor.email || "this mentor"
+                                } from team ${team.team_number}?`}
                                 className="text-sm font-semibold text-red-600 hover:underline"
                               >
                                 Remove
-                              </button>
+                              </ConfirmSubmitButton>
                             </form>
                           </li>
                         ))}

@@ -17,18 +17,33 @@ type Team = {
   team_name: string | null;
 };
 
+type TeamInfo = {
+  team_number: string | null;
+  team_name: string | null;
+} | null;
+
 type RecentImage = {
   id: string;
   title: string;
   description: string | null;
   created_at: string;
+  teams?: TeamInfo | TeamInfo[];
 };
 
 type RecentNote = {
   id: string;
   title: string;
   meeting_date: string;
+  teams?: TeamInfo | TeamInfo[];
 };
+
+function teamLabel(team: TeamInfo | TeamInfo[] | null | undefined): string | null {
+  const resolved = Array.isArray(team) ? team[0] : team;
+  if (!resolved?.team_number) return null;
+  return resolved.team_name
+    ? `${resolved.team_number} - ${resolved.team_name}`
+    : resolved.team_number;
+}
 
 export default async function TeamPage() {
   const supabase = await createClient();
@@ -51,12 +66,19 @@ export default async function TeamPage() {
     redirect("/dashboard");
   }
 
+  const activeTeamId = profile.team_id ?? null;
+  const isAdmin = (profile.role ?? "").toLowerCase() === "admin";
+  const viewingAllTeams = isAdmin && !activeTeamId;
+
   let team: Team | null = null;
   let teammates: Profile[] = [];
   let recentImages: RecentImage[] = [];
   let recentNotes: RecentNote[] = [];
 
-  if (profile.team_id) {
+  let allTeams: Team[] = [];
+  let allProfiles: Profile[] = [];
+
+  if (activeTeamId) {
     const [
       { data: teamData },
       { data: teammateData },
@@ -66,19 +88,19 @@ export default async function TeamPage() {
       supabase
         .from("teams")
         .select("id, team_number, team_name")
-        .eq("id", profile.team_id)
+        .eq("id", activeTeamId)
         .single(),
 
       supabase
         .from("profiles")
         .select("id, full_name, email, role, team_id")
-        .eq("team_id", profile.team_id)
+        .eq("team_id", activeTeamId)
         .order("full_name", { ascending: true }),
 
       supabase
         .from("image_entries")
         .select("id, title, description, created_at")
-        .eq("team_id", profile.team_id)
+        .eq("team_id", activeTeamId)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5),
@@ -86,7 +108,8 @@ export default async function TeamPage() {
       supabase
         .from("meeting_notes")
         .select("id, title, meeting_date")
-        .eq("team_id", profile.team_id)
+        .eq("team_id", activeTeamId)
+        .is("deleted_at", null)
         .order("meeting_date", { ascending: false })
         .limit(5),
     ]);
@@ -95,15 +118,65 @@ export default async function TeamPage() {
     teammates = (teammateData ?? []) as Profile[];
     recentImages = (imageData ?? []) as RecentImage[];
     recentNotes = (noteData ?? []) as RecentNote[];
+  } else if (viewingAllTeams) {
+    const [
+      { data: teamsData },
+      { data: profilesData },
+      { data: imageData },
+      { data: noteData },
+    ] = await Promise.all([
+      supabase
+        .from("teams")
+        .select("id, team_number, team_name")
+        .order("team_number", { ascending: true }),
+
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, role, team_id")
+        .order("full_name", { ascending: true }),
+
+      supabase
+        .from("image_entries")
+        .select("id, title, description, created_at, teams(team_number, team_name)")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(5),
+
+      supabase
+        .from("meeting_notes")
+        .select("id, title, meeting_date, teams(team_number, team_name)")
+        .is("deleted_at", null)
+        .order("meeting_date", { ascending: false })
+        .limit(5),
+    ]);
+
+    allTeams = (teamsData ?? []) as Team[];
+    allProfiles = (profilesData ?? []) as Profile[];
+    recentImages = (imageData ?? []) as unknown as RecentImage[];
+    recentNotes = (noteData ?? []) as unknown as RecentNote[];
   }
+
+  const membersByTeam = new Map<string, Profile[]>();
+  allProfiles.forEach((member) => {
+    if (!member.team_id) return;
+    const list = membersByTeam.get(member.team_id) ?? [];
+    list.push(member);
+    membersByTeam.set(member.team_id, list);
+  });
+
+  const unassignedCount = allProfiles.filter((member) => !member.team_id).length;
 
   return (
     <main className="min-h-screen bg-[#F5F7FA] p-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8">
-          <h1 className="text-5xl font-bold text-[#1C1F23]">My Team</h1>
+          <h1 className="text-5xl font-bold text-[#1C1F23]">
+            {viewingAllTeams ? "All Teams" : "My Team"}
+          </h1>
           <p className="mt-2 text-lg text-slate-600">
-            View your team assignment and teammates.
+            {viewingAllTeams
+              ? "Viewing every team across the program. Switch to a single team in the header to manage one directly."
+              : "View your team assignment and teammates."}
           </p>
         </div>
 
@@ -119,160 +192,307 @@ export default async function TeamPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#8ED4FF] text-[#1C1F23]">
-              <Users size={24} />
-            </div>
+        {viewingAllTeams ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#8ED4FF] text-[#1C1F23]">
+                <Users size={24} />
+              </div>
 
-            <div>
-              <h2 className="text-2xl font-bold text-[#1C1F23]">
-                Team Assignment
-              </h2>
-              <p className="text-slate-600">
-                This information can only be changed by an admin.
-              </p>
-            </div>
-          </div>
-
-          {!team ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-              <h3 className="text-xl font-bold text-[#1C1F23]">
-                You are not assigned to a team yet.
-              </h3>
-              <p className="mt-2 text-slate-600">
-                Ask a mentor or admin to assign you to a team.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="mb-6 rounded-2xl bg-[#E8F6FF] p-6">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-                  Current Team
+              <div>
+                <h2 className="text-2xl font-bold text-[#1C1F23]">
+                  All Teams
+                </h2>
+                <p className="text-slate-600">
+                  {allTeams.length} team{allTeams.length === 1 ? "" : "s"} ·{" "}
+                  {unassignedCount} unassigned user
+                  {unassignedCount === 1 ? "" : "s"}
                 </p>
+              </div>
+            </div>
 
-                <h3 className="mt-2 text-4xl font-bold text-[#1C1F23]">
-                  {team.team_number}
+            {allTeams.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <h3 className="text-xl font-bold text-[#1C1F23]">
+                  No teams have been created yet.
                 </h3>
+                <p className="mt-2 text-slate-600">
+                  Add a team from the admin Teams page to get started.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {allTeams.map((t) => {
+                  const members = membersByTeam.get(t.id) ?? [];
 
-                {team.team_name && (
-                  <p className="mt-1 text-xl text-slate-700">
-                    {team.team_name}
+                  return (
+                    <div
+                      key={t.id}
+                      className="rounded-xl border border-slate-200 p-4"
+                    >
+                      <p className="text-lg font-bold text-[#1C1F23]">
+                        {t.team_number}
+                      </p>
+
+                      {t.team_name && (
+                        <p className="text-sm text-slate-600">{t.team_name}</p>
+                      )}
+
+                      <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        {members.length} member{members.length === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
+                    <Camera size={20} /> Recent Images
+                  </h3>
+
+                  <Link
+                    href="/images"
+                    className="text-sm font-semibold text-[#1C1F23] hover:underline"
+                  >
+                    View all
+                  </Link>
+                </div>
+
+                {recentImages.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No images uploaded yet.
                   </p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentImages.map((image) => (
+                      <div
+                        key={image.id}
+                        className="rounded-xl border border-slate-200 p-4"
+                      >
+                        <p className="font-semibold text-[#1C1F23]">
+                          {image.title}
+                        </p>
+
+                        {image.description && (
+                          <p className="mt-1 line-clamp-2 text-sm text-slate-600">
+                            {image.description}
+                          </p>
+                        )}
+
+                        <p className="mt-2 text-xs text-slate-500">
+                          {new Date(image.created_at).toLocaleDateString()}
+                          {teamLabel(image.teams) && (
+                            <span> · {teamLabel(image.teams)}</span>
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              <h3 className="mb-4 text-xl font-bold text-[#1C1F23]">
-                Teammates
-              </h3>
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
+                    <NotebookPen size={20} /> Recent Meeting Notes
+                  </h3>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {teammates.map((teammate) => (
-                  <div
-                    key={teammate.id}
-                    className="rounded-xl border border-slate-200 p-4"
+                  <Link
+                    href="/meeting-notes"
+                    className="text-sm font-semibold text-[#1C1F23] hover:underline"
                   >
-                    <p className="font-bold text-[#1C1F23]">
-                      {teammate.full_name || "No name"}
-                    </p>
+                    View all
+                  </Link>
+                </div>
 
-                    <p className="text-sm text-slate-600">
-                      {teammate.email || "No email"}
-                    </p>
+                {recentNotes.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No meeting notes yet.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentNotes.map((note) => (
+                      <div
+                        key={note.id}
+                        className="rounded-xl border border-slate-200 p-4"
+                      >
+                        <p className="font-semibold text-[#1C1F23]">
+                          {note.title}
+                        </p>
 
-                    <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                      {teammate.role || "student"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 grid gap-6 md:grid-cols-2">
-                <div>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
-                      <Camera size={20} /> Recent Images
-                    </h3>
-
-                    <Link
-                      href="/images"
-                      className="text-sm font-semibold text-[#1C1F23] hover:underline"
-                    >
-                      View all
-                    </Link>
-                  </div>
-
-                  {recentImages.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No images uploaded yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentImages.map((image) => (
-                        <div
-                          key={image.id}
-                          className="rounded-xl border border-slate-200 p-4"
-                        >
-                          <p className="font-semibold text-[#1C1F23]">
-                            {image.title}
-                          </p>
-
-                          {image.description && (
-                            <p className="mt-1 line-clamp-2 text-sm text-slate-600">
-                              {image.description}
-                            </p>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {note.meeting_date}
+                          {teamLabel(note.teams) && (
+                            <span> · {teamLabel(note.teams)}</span>
                           )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#8ED4FF] text-[#1C1F23]">
+                <Users size={24} />
+              </div>
 
-                          <p className="mt-2 text-xs text-slate-500">
-                            {new Date(image.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+              <div>
+                <h2 className="text-2xl font-bold text-[#1C1F23]">
+                  Team Assignment
+                </h2>
+                <p className="text-slate-600">
+                  This information can only be changed by an admin.
+                </p>
+              </div>
+            </div>
+
+            {!team ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <h3 className="text-xl font-bold text-[#1C1F23]">
+                  You are not assigned to a team yet.
+                </h3>
+                <p className="mt-2 text-slate-600">
+                  Ask a mentor or admin to assign you to a team.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-6 rounded-2xl bg-[#E8F6FF] p-6">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                    Current Team
+                  </p>
+
+                  <h3 className="mt-2 text-4xl font-bold text-[#1C1F23]">
+                    {team.team_number}
+                  </h3>
+
+                  {team.team_name && (
+                    <p className="mt-1 text-xl text-slate-700">
+                      {team.team_name}
+                    </p>
                   )}
                 </div>
 
-                <div>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
-                      <NotebookPen size={20} /> Recent Meeting Notes
-                    </h3>
+                <h3 className="mb-4 text-xl font-bold text-[#1C1F23]">
+                  Teammates
+                </h3>
 
-                    <Link
-                      href="/meeting-notes"
-                      className="text-sm font-semibold text-[#1C1F23] hover:underline"
+                <div className="grid gap-4 md:grid-cols-2">
+                  {teammates.map((teammate) => (
+                    <div
+                      key={teammate.id}
+                      className="rounded-xl border border-slate-200 p-4"
                     >
-                      View all
-                    </Link>
+                      <p className="font-bold text-[#1C1F23]">
+                        {teammate.full_name || "No name"}
+                      </p>
+
+                      <p className="text-sm text-slate-600">
+                        {teammate.email || "No email"}
+                      </p>
+
+                      <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        {teammate.role || "student"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 grid gap-6 md:grid-cols-2">
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
+                        <Camera size={20} /> Recent Images
+                      </h3>
+
+                      <Link
+                        href="/images"
+                        className="text-sm font-semibold text-[#1C1F23] hover:underline"
+                      >
+                        View all
+                      </Link>
+                    </div>
+
+                    {recentImages.length === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        No images uploaded yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {recentImages.map((image) => (
+                          <div
+                            key={image.id}
+                            className="rounded-xl border border-slate-200 p-4"
+                          >
+                            <p className="font-semibold text-[#1C1F23]">
+                              {image.title}
+                            </p>
+
+                            {image.description && (
+                              <p className="mt-1 line-clamp-2 text-sm text-slate-600">
+                                {image.description}
+                              </p>
+                            )}
+
+                            <p className="mt-2 text-xs text-slate-500">
+                              {new Date(image.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {recentNotes.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No meeting notes yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentNotes.map((note) => (
-                        <div
-                          key={note.id}
-                          className="rounded-xl border border-slate-200 p-4"
-                        >
-                          <p className="font-semibold text-[#1C1F23]">
-                            {note.title}
-                          </p>
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="flex items-center gap-2 text-xl font-bold text-[#1C1F23]">
+                        <NotebookPen size={20} /> Recent Meeting Notes
+                      </h3>
 
-                          <p className="mt-2 text-xs text-slate-500">
-                            {note.meeting_date}
-                          </p>
-                        </div>
-                      ))}
+                      <Link
+                        href="/meeting-notes"
+                        className="text-sm font-semibold text-[#1C1F23] hover:underline"
+                      >
+                        View all
+                      </Link>
                     </div>
-                  )}
+
+                    {recentNotes.length === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        No meeting notes yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {recentNotes.map((note) => (
+                          <div
+                            key={note.id}
+                            className="rounded-xl border border-slate-200 p-4"
+                          >
+                            <p className="font-semibold text-[#1C1F23]">
+                              {note.title}
+                            </p>
+
+                            <p className="mt-2 text-xs text-slate-500">
+                              {note.meeting_date}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
-        </section>
+              </>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );

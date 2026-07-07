@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
 type Feedback = {
@@ -34,7 +36,15 @@ async function updateFeedbackStatus(formData: FormData) {
 
   if (!id || !status) return;
 
-  await supabase.from("feedback").update({ status }).eq("id", id);
+  const { data } = await supabase
+    .from("feedback")
+    .update({ status })
+    .eq("id", id)
+    .select();
+
+  if (!data || data.length === 0) {
+    redirect("/admin/feedback?error=update_failed");
+  }
 
   revalidatePath("/admin/feedback");
 }
@@ -70,7 +80,15 @@ async function addFeedbackComment(formData: FormData) {
   });
 
   if (closeAfter) {
-    await supabase.from("feedback").update({ status: "Closed" }).eq("id", feedbackId);
+    const { data } = await supabase
+      .from("feedback")
+      .update({ status: "Closed" })
+      .eq("id", feedbackId)
+      .select();
+
+    if (!data || data.length === 0) {
+      redirect("/admin/feedback?error=close_failed");
+    }
   }
 
   revalidatePath("/admin/feedback");
@@ -79,7 +97,12 @@ async function addFeedbackComment(formData: FormData) {
 export default async function AdminFeedbackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; type?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    type?: string;
+    error?: string;
+  }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -138,6 +161,30 @@ export default async function AdminFeedbackPage({
           Review issues and ideas submitted by users.
         </p>
       </div>
+
+      {params.error === "update_failed" && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+          <AlertTriangle size={20} className="shrink-0" />
+          <p>
+            The status wasn&apos;t updated. This usually means a Supabase Row
+            Level Security policy is blocking the update — check the UPDATE
+            policy on feedback covers Admins for rows they didn&apos;t
+            create.
+          </p>
+        </div>
+      )}
+
+      {params.error === "close_failed" && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+          <AlertTriangle size={20} className="shrink-0" />
+          <p>
+            Your comment was saved, but the feedback wasn&apos;t closed. This
+            usually means a Supabase Row Level Security policy is blocking
+            the update — check the UPDATE policy on feedback covers Admins
+            for rows they didn&apos;t create.
+          </p>
+        </div>
+      )}
 
       <div className="mb-4 flex gap-2">
         {[

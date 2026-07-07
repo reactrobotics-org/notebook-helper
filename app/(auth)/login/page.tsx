@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(() =>
+    searchParams.get("error") === "expired_link"
+      ? "That sign-in link has expired or already been used. Request a new one below."
+      : ""
+  );
   const [sending, setSending] = useState(false);
 
   async function signInWithGoogle() {
