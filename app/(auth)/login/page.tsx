@@ -93,6 +93,16 @@ function LoginForm() {
           Sign in to document your team's progress.
         </p>
 
+        <div className="mt-4 rounded-lg bg-[#E8F6FF] p-4 text-sm text-slate-700">
+          <p>
+            <strong>New here?</strong> This is where your VEX Robotics team
+            keeps track of its season — upload progress photos, log what
+            happened at each meeting, and jot down quick ideas to revisit
+            later. This is NOT your engineering notebook, just a shared
+            place for your team to document its own work.
+          </p>
+        </div>
+
         <button
           onClick={signInWithGoogle}
           className="mt-6 w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700"

@@ -26,6 +26,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/images", label: "Images" },
   { href: "/meeting-notes", label: "Meeting Notes" },
+  { href: "/scratchpad", label: "Scratchpad" },
   { href: "/teams", label: "Team" },
   { href: "/scoreboard", label: "Scoreboard" },
 ];

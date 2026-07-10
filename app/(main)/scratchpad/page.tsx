@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import MeetingNoteCard from "@/components/MeetingNoteCard";
+import ScratchpadCard from "@/components/ScratchPadCard";
 
 const PAGE_SIZE = 10;
 
-export default async function MeetingNotesPage({
+export default async function ScratchpadPage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: string }>;
@@ -36,15 +36,12 @@ export default async function MeetingNotesPage({
   const to = from + PAGE_SIZE - 1;
 
   let query = supabase
-    .from("meeting_notes")
+    .from("scratchpad_entries")
     .select(
       `
       id,
       title,
-      meeting_date,
-      attendees,
-      worked_on,
-      action_items,
+      content,
       created_at,
       profiles (
         full_name,
@@ -54,14 +51,14 @@ export default async function MeetingNotesPage({
       { count: "exact" }
     )
     .is("deleted_at", null)
-    .order("meeting_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(from, to);
 
   if (!viewingAllTeams) {
     query = query.eq("team_id", activeTeamId ?? "");
   }
 
-  const { data: notes, error, count } = await query;
+  const { data: entries, error, count } = await query;
 
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -71,25 +68,24 @@ export default async function MeetingNotesPage({
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Meeting Notes</h1>
+            <h1 className="text-3xl font-bold">Scratchpad</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Record what happened at practice and what needs to happen
-              next — insert photos to help explain, and any team member can
-              add or edit a note.
+              Quick ideas and thoughts to reference later — not a full
+              meeting note.
             </p>
           </div>
 
           <Link
-            href="/meeting-notes/new"
+            href="/scratchpad/new"
             className="rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA]"
           >
-            Add Meeting Note
+            Add Idea
           </Link>
         </div>
 
         {error && (
           <div className="rounded bg-red-100 p-4 text-red-700">
-            Error loading meeting notes: {error.message}
+            Error loading scratchpad entries: {error.message}
           </div>
         )}
 
@@ -103,27 +99,27 @@ export default async function MeetingNotesPage({
 
         {(activeTeamId || isAdmin) &&
           !error &&
-          (!notes || notes.length === 0) && (
+          (!entries || entries.length === 0) && (
             <div className="rounded bg-white p-8 text-center shadow">
-              <p className="text-gray-600">
-                No meeting notes have been added yet.
-              </p>
+              <p className="text-gray-600">No ideas have been added yet.</p>
             </div>
           )}
 
         <div className="space-y-6">
-          {notes?.map((note) => {
-            const profile = Array.isArray(note.profiles)
-              ? note.profiles[0]
-              : note.profiles;
+          {entries?.map((entry) => {
+            const submitterProfile = Array.isArray(entry.profiles)
+              ? entry.profiles[0]
+              : entry.profiles;
 
             const submittedBy =
-              profile?.full_name ?? profile?.email ?? "Unknown user";
+              submitterProfile?.full_name ??
+              submitterProfile?.email ??
+              "Unknown user";
 
             return (
-              <MeetingNoteCard
-                key={note.id}
-                note={note}
+              <ScratchpadCard
+                key={entry.id}
+                entry={entry}
                 submittedBy={submittedBy}
               />
             );
@@ -133,7 +129,7 @@ export default async function MeetingNotesPage({
         {totalPages > 1 && (
           <div className="mt-8 flex items-center justify-between">
             <Link
-              href={`/meeting-notes?page=${currentPage - 1}`}
+              href={`/scratchpad?page=${currentPage - 1}`}
               aria-disabled={currentPage <= 1}
               className={`rounded border px-4 py-2 text-sm font-semibold ${
                 currentPage <= 1
@@ -149,7 +145,7 @@ export default async function MeetingNotesPage({
             </p>
 
             <Link
-              href={`/meeting-notes?page=${currentPage + 1}`}
+              href={`/scratchpad?page=${currentPage + 1}`}
               aria-disabled={currentPage >= totalPages}
               className={`rounded border px-4 py-2 text-sm font-semibold ${
                 currentPage >= totalPages

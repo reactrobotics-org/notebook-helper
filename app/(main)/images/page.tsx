@@ -104,6 +104,11 @@ export default async function ImagesPage({
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Images</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Upload photos to document your robot&apos;s progress — tag
+              them by category and subsystem so your team can find them
+              again later.
+            </p>
           </div>
 
           <div className="flex gap-2">

@@ -124,6 +124,13 @@ export default async function AppNav() {
             </Link>
 
             <Link
+              href="/scratchpad"
+              className="text-black transition hover:text-[#8ED4FF]"
+            >
+              Scratchpad
+            </Link>
+
+            <Link
               href="/teams"
               className="text-black transition hover:text-[#8ED4FF]"
             >

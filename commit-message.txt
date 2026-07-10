@@ -1,0 +1,54 @@
+Add auth expansion, PWA support, Scratchpad, and clear the known-gaps backlog
+
+Confirmation dialogs & RLS audit
+- Confirmation dialogs on destructive admin actions (delete user, delete
+  team, remove mentor) via ConfirmSubmitButton
+- Audited and fixed the RLS silent-failure gap (.update()/.delete()
+  returning zero rows instead of an error) across profiles, teams,
+  team_mentors, and feedback, matching the pattern already fixed on
+  image_entries
+- Fixed expired/reused magic-link handling in /auth/callback
+
+Teams, meeting notes, pagination
+- /teams now supports the Admin "All Teams" view instead of showing
+  "not assigned to a team"
+- Meeting notes: soft-delete + /admin/deleted-meeting-notes recovery page
+- Query-level pagination on /images/manage, /meeting-notes/manage, and
+  /admin/activity (replacing a hard 40-entry cap)
+- Conflict warning when two people save the same meeting note at once,
+  using the loaded updated_at as an optimistic-concurrency check
+
+Infrastructure
+- Centralized session refresh into proxy.ts (renamed from middleware.ts
+  per Next.js 16's convention change)
+- Added PWA support: manifest, app icons, appleWebApp metadata — installable
+  on iPad/phone homescreens
+- Added a Sign Out button (previously no way to log out)
+
+Auth & user features
+- Username/password login for students without an email address
+  (/admin/users/new, utils/supabase/admin.ts, synthetic
+  username@students.local emails, case-insensitive login)
+- /settings page for any user to change their own display name
+- /scoreboard: top 5 teams by Meeting Notes/Images, last 10 days and
+  all-time, visible to every logged-in user
+
+Scratchpad (new feature)
+- New scratchpad_entries table + RLS policies
+- /scratchpad, /scratchpad/new, /scratchpad/manage: quick ideas with
+  optional inline photos, lighter-weight than a full meeting note
+- Same soft-delete/conflict-detection/pagination patterns as meeting notes
+
+Bug fixes & polish
+- Fixed /admin/feedback's "Open" filter showing zero results (root cause:
+  the status column's real default is lowercase "new", not "New" as the
+  filter's allowlist expected) — redefined "Open" as "not exactly Closed"
+- Added short new-user explanations to the login page, /images, and
+  /meeting-notes
+
+Requires manual setup before this works:
+- Run the SQL for profiles.username, meeting_notes.deleted_at,
+  scratchpad_entries (table + policies), and the Admin RLS bypass
+  policies on profiles/teams/team_mentors/feedback/meeting_notes
+- Add SUPABASE_SERVICE_ROLE_KEY to .env.local and Vercel env vars
+  (server-only, never expose to the browser)
