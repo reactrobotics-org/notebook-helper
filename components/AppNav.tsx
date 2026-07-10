@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import TeamSwitcher from "@/components/TeamSwitcher";
 import FeedbackButton from "@/components/FeedbackButton";
 import MobileNav from "@/components/MobileNav";
+import SignOutButton from "@/components/SignOutButton";
 
 type TeamOption = {
   id: string;
@@ -144,8 +145,11 @@ export default async function AppNav() {
             <FeedbackButton />
 
             <div>
-          <div>
-            <strong>User:</strong> {displayName}
+          <div className="flex items-center justify-end gap-3">
+            <div>
+              <strong>User:</strong> {displayName}
+            </div>
+            <SignOutButton />
           </div>
 
           {showTeamSwitcher ? (
