@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import FeedbackButton from "@/components/FeedbackButton";
 import TeamSwitcher from "@/components/TeamSwitcher";
+import SignOutButton from "@/components/SignOutButton";
 
 type TeamOption = {
   id: string;
@@ -26,6 +27,7 @@ const links = [
   { href: "/images", label: "Images" },
   { href: "/meeting-notes", label: "Meeting Notes" },
   { href: "/teams", label: "Team" },
+  { href: "/scoreboard", label: "Scoreboard" },
 ];
 
 export default function MobileNav({
@@ -75,8 +77,20 @@ export default function MobileNav({
           </nav>
 
           <div className="mb-4 border-t border-slate-200 pt-4 text-sm text-slate-600">
-            <div>
-              <strong>User:</strong> {displayName}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <strong>User:</strong> {displayName}
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/settings"
+                  onClick={() => setOpen(false)}
+                  className="font-semibold text-[#1C1F23] hover:text-[#8ED4FF]"
+                >
+                  Settings
+                </Link>
+                <SignOutButton />
+              </div>
             </div>
 
             {showTeamSwitcher ? (

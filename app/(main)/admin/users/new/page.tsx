@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 const USERNAME_DOMAIN = "students.local";
-const USERNAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,18}[a-z0-9]$/;
+const USERNAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{1,18}[A-Za-z0-9]$/;
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -37,9 +37,8 @@ async function createStudentAccount(formData: FormData) {
 
   await requireAdmin();
 
-  const rawUsername = String(formData.get("username") ?? "")
-    .trim()
-    .toLowerCase();
+  const rawUsername = String(formData.get("username") ?? "").trim();
+  const normalizedUsername = rawUsername.toLowerCase();
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
   const teamId = String(formData.get("team_id") ?? "");
@@ -56,7 +55,10 @@ async function createStudentAccount(formData: FormData) {
     redirect("/admin/users/new?error=missing_team");
   }
 
-  const email = `${rawUsername}@${USERNAME_DOMAIN}`;
+  // The stored username keeps whatever case the admin typed, for display,
+  // but sign-in is always matched against the lowercased form below —
+  // login stays case-insensitive even though the display isn't.
+  const email = `${normalizedUsername}@${USERNAME_DOMAIN}`;
   const admin = createAdminClient();
 
   const { data: created, error: createError } =

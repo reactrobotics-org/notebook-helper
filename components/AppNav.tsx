@@ -130,6 +130,13 @@ export default async function AppNav() {
               Team
             </Link>
 
+            <Link
+              href="/scoreboard"
+              className="text-black transition hover:text-[#8ED4FF]"
+            >
+              Scoreboard
+            </Link>
+
             {isAdmin && (
               <Link
                 href="/admin"
@@ -149,6 +156,12 @@ export default async function AppNav() {
             <div>
               <strong>User:</strong> {displayName}
             </div>
+            <Link
+              href="/settings"
+              className="font-semibold text-[#1C1F23] hover:text-[#8ED4FF]"
+            >
+              Settings
+            </Link>
             <SignOutButton />
           </div>
 
