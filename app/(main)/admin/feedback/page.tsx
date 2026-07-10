@@ -26,6 +26,13 @@ type FeedbackComment = {
 
 const STATUS_OPTIONS = ["New", "In Progress", "Closed"];
 
+function normalizeStatusForDisplay(status: string) {
+  const match = STATUS_OPTIONS.find(
+    (option) => option.toLowerCase() === status.toLowerCase()
+  );
+  return match ?? STATUS_OPTIONS[0];
+}
+
 async function updateFeedbackStatus(formData: FormData) {
   "use server";
 
@@ -117,7 +124,7 @@ export default async function AdminFeedbackPage({
     .order("created_at", { ascending: false });
 
   if (statusFilter === "open") {
-    query = query.in("status", ["New", "In Progress"]);
+    query = query.neq("status", "Closed");
   } else if (statusFilter !== "all") {
     query = query.eq("status", statusFilter);
   }
@@ -244,7 +251,7 @@ export default async function AdminFeedbackPage({
           className="rounded-lg border border-slate-300 bg-white px-3 py-2"
         >
           <option value="all">All Statuses</option>
-          <option value="open">Open (New + In Progress)</option>
+          <option value="open">Open (Not Closed)</option>
           {STATUS_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -286,7 +293,7 @@ export default async function AdminFeedbackPage({
                   <input type="hidden" name="id" value={item.id} />
                   <select
                     name="status"
-                    defaultValue={item.status}
+                    defaultValue={normalizeStatusForDisplay(item.status)}
                     className="rounded-full border border-slate-300 bg-[#E8F6FF] px-3 py-1 text-sm font-semibold text-[#1C1F23]"
                   >
                     {STATUS_OPTIONS.map((option) => (
