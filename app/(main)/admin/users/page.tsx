@@ -90,7 +90,9 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-async function updateUser(formData: FormData) {
+async function updateUser(
+  formData: FormData
+): Promise<{ success: boolean; message: string }> {
   "use server";
 
   const { supabase, user } = await getCurrentAdmin();
@@ -100,11 +102,18 @@ async function updateUser(formData: FormData) {
   const teamValue = String(formData.get("team_id") ?? "none");
   const teamId = teamValue === "none" ? null : teamValue;
 
-  if (!userId || !roles.includes(role)) return;
+  if (!userId || !roles.includes(role)) {
+    return { success: false, message: "Invalid request." };
+  }
 
-  if (userId === user.id && role !== "Admin") return;
+  if (userId === user.id && role !== "Admin") {
+    return {
+      success: false,
+      message: "You cannot remove your own Admin role.",
+    };
+  }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({
       role,
@@ -113,12 +122,26 @@ async function updateUser(formData: FormData) {
     .eq("id", userId)
     .select();
 
+  if (error) {
+    console.error("Error updating user:", error);
+    return { success: false, message: `Error updating user: ${error.message}` };
+  }
+
   if (!data || data.length === 0) {
-    redirect("/admin/users?error=update_failed");
+    console.error(
+      "Update returned no rows — likely blocked by a Row Level Security policy on profiles."
+    );
+    return {
+      success: false,
+      message:
+        "Nothing was updated. This usually means a Supabase Row Level Security policy is blocking the update — check the UPDATE policy on profiles.",
+    };
   }
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
+
+  return { success: true, message: "User updated." };
 }
 
 async function removeUserFromTeam(formData: FormData) {

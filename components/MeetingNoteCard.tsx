@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { formatDateOnly } from "@/utils/formatDate";
 
 type Props = {
   note: {
@@ -25,7 +26,7 @@ export default function MeetingNoteCard({ note, submittedBy }: Props) {
         <div>
           <h2 className="text-2xl font-semibold">{note.title}</h2>
           <p className="text-sm text-slate-500">
-            Meeting Date: {new Date(note.meeting_date).toLocaleDateString()}
+            Meeting Date: {formatDateOnly(note.meeting_date)}
           </p>
         </div>
 
