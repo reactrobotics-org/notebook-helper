@@ -318,7 +318,7 @@ function ManageMeetingNotesContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-100 p-8">
+      <main className="min-h-dvh bg-slate-100 p-8">
         <div className="mx-auto max-w-4xl rounded bg-white p-8 shadow">
           <p className="text-slate-700">Loading meeting notes...</p>
         </div>
@@ -329,7 +329,7 @@ function ManageMeetingNotesContent() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
+    <main className="min-h-dvh bg-slate-100 p-8">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
@@ -566,7 +566,7 @@ export default function ManageMeetingNotesPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-100 p-8">
+        <main className="min-h-dvh bg-slate-100 p-8">
           <div className="mx-auto max-w-4xl rounded bg-white p-8 shadow">
             <p className="text-slate-700">Loading meeting notes...</p>
           </div>

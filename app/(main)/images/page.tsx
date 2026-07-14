@@ -99,7 +99,7 @@ export default async function ImagesPage({
   ];
 
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
+    <main className="min-h-dvh bg-slate-100 p-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <div>

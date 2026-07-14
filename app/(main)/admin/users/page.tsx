@@ -269,7 +269,7 @@ export default async function AdminUsersPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA] p-8">
+    <main className="min-h-dvh bg-[#F5F7FA] p-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -419,7 +419,7 @@ export default async function AdminUsersPage({
             {totalPages}).
           </p>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto contain-layout">
             <table className="w-full min-w-[1050px] border-collapse text-left">
               <thead>
                 <tr className="border-b bg-slate-50 text-sm uppercase tracking-wide text-slate-500">

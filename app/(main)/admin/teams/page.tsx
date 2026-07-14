@@ -294,7 +294,7 @@ export default async function AdminTeamsPage({
   });
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA] p-8">
+    <main className="min-h-dvh bg-[#F5F7FA] p-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

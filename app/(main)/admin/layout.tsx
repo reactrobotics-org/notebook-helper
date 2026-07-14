@@ -35,7 +35,7 @@ export default async function AdminLayout({
   await requireAdmin();
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA]">
+    <main className="min-h-dvh bg-[#F5F7FA]">
       <div className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-8 py-6">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

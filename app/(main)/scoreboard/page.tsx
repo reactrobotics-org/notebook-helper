@@ -103,7 +103,7 @@ export default async function ScoreboardPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA] p-8">
+    <main className="min-h-dvh bg-[#F5F7FA] p-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8">
           <h1 className="text-5xl font-bold text-[#1C1F23]">Scoreboard</h1>

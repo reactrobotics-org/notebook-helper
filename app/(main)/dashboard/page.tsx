@@ -122,7 +122,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA] p-8">
+    <main className="min-h-dvh bg-[#F5F7FA] p-8">
       <div className="mx-auto max-w-7xl">
 
         <div className="mb-10">

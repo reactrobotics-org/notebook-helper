@@ -100,7 +100,7 @@ export default function NewImagePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
+    <main className="min-h-dvh bg-slate-100 p-8">
       <div className="mx-auto max-w-3xl rounded-lg bg-white p-8 shadow">
         <h1 className="mb-6 text-3xl font-bold">Add Image</h1>
 
