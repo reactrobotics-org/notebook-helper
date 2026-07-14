@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import UpdateUserForm from "@/components/UpdateUserForm";
+
 
 const PAGE_SIZE = 20;
 
@@ -451,45 +453,15 @@ export default async function AdminUsersPage({
                     </td>
 
                     <td className="p-3" colSpan={3}>
-                      <form action={updateUser} className="grid gap-3 lg:grid-cols-[160px_260px_auto]">
-                        <input type="hidden" name="user_id" value={profile.id} />
-
-                        <select
-                          name="role"
-                          defaultValue={profile.role ?? "Student"}
-                          className="rounded-lg border border-slate-300 bg-white p-2"
-                        >
-                          {roles.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
-
-                        <select
-                          name="team_id"
-                          defaultValue={profile.team_id ?? "none"}
-                          className="rounded-lg border border-slate-300 bg-white p-2"
-                        >
-                          <option value="none">No Team</option>
-                          {teamList.map((team) => (
-                            <option key={team.id} value={team.id}>
-                              {team.team_number}
-                              {team.team_name ? ` - ${team.team_name}` : ""}
-                            </option>
-                          ))}
-                        </select>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </form>
-
+                      <UpdateUserForm
+                        key={`${profile.id}-${profile.role ?? "Student"}-${profile.team_id ?? "none"}`}
+                        userId={profile.id}
+                        currentRole={(profile.role ?? "Student") as "Student" | "Mentor" | "Admin"}
+                        currentTeamId={profile.team_id}
+                        teams={teamList}
+                        roles={roles}
+                        updateUserAction={updateUser}
+                      />
                       {profile.team_id && (
                         <form action={removeUserFromTeam} className="mt-2">
                           <input type="hidden" name="user_id" value={profile.id} />
