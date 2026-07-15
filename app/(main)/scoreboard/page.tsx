@@ -92,7 +92,7 @@ export default async function ScoreboardPage() {
 
   return (
     <main className="min-h-dvh bg-[#F5F7FA] p-8">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-[1600px]">
         <div className="mb-10">
           <h1 className="text-7xl font-bold text-[#1C1F23]">Scoreboard</h1>
           <p className="mt-3 text-2xl text-slate-600">
@@ -100,7 +100,7 @@ export default async function ScoreboardPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           <Leaderboard
             title={`Meeting Notes — Last ${RECENT_WINDOW_DAYS} Days`}
             icon={<NotebookPen size={20} />}
