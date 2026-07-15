@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
 import { Camera, NotebookPen, Trophy } from "lucide-react";
-import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 const RECENT_WINDOW_DAYS = 10;
@@ -39,19 +37,9 @@ function rankTeams(
 }
 
 export default async function ScoreboardPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  // The scoreboard intentionally shows every team's counts to every
-  // logged-in user, which is broader than the normal team-scoped RLS
-  // policies allow — so this reads through the service-role client. It
+  // The scoreboard is intentionally public and shows every team's counts
+  // to anyone with the URL — broader than the normal team-scoped RLS
+  // policies allow, so this reads through the service-role client. It
   // only ever touches team_id/created_at, never note or image content.
   const admin = createAdminClient();
 
