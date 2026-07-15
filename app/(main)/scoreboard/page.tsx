@@ -93,9 +93,9 @@ export default async function ScoreboardPage() {
   return (
     <main className="min-h-dvh bg-[#F5F7FA] p-8">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <h1 className="text-5xl font-bold text-[#1C1F23]">Scoreboard</h1>
-          <p className="mt-2 text-lg text-slate-600">
+        <div className="mb-10">
+          <h1 className="text-7xl font-bold text-[#1C1F23]">Scoreboard</h1>
+          <p className="mt-3 text-2xl text-slate-600">
             Top teams by meeting notes and images submitted.
           </p>
         </div>
@@ -138,12 +138,12 @@ function Leaderboard({
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8ED4FF] text-[#1C1F23]">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#8ED4FF] text-[#1C1F23]">
           {icon}
         </div>
-        <h2 className="text-lg font-bold text-[#1C1F23]">{title}</h2>
-      </div>
+        <h2 className="text-2xl font-bold text-[#1C1F23]">{title}</h2>
+      </div> 
 
       {entries.length === 0 ? (
         <p className="text-sm text-slate-500">No submissions yet.</p>
@@ -152,24 +152,26 @@ function Leaderboard({
           {entries.map((entry, index) => (
             <li
               key={entry.team.id}
-              className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"
+              className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3"
             >
-              <div className="flex items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
-                  {index === 0 ? <Trophy size={14} /> : index + 1}
+              <div className="flex items-center gap-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700">
+                  {index === 0 ? <Trophy size={22} /> : index + 1}
                 </span>
                 <div>
-                  <p className="font-semibold text-[#1C1F23]">
+                  <p className="text-2xl font-semibold text-[#1C1F23]">
                     {entry.team.team_number}
                   </p>
                   {entry.team.team_name && (
-                    <p className="text-xs text-slate-500">
+                    <p className="text-base text-slate-500">
                       {entry.team.team_name}
                     </p>
                   )}
                 </div>
               </div>
-              <span className="font-bold text-[#1C1F23]">{entry.count}</span>
+              <span className="text-3xl font-bold text-[#1C1F23]">
+                {entry.count}
+              </span>
             </li>
           ))}
         </ol>
