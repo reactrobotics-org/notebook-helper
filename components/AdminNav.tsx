@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Users,
   MessageSquare,
+  GraduationCap,
   Trash2,
 } from "lucide-react";
 
@@ -31,6 +32,11 @@ const links = [
     href: "/admin/activity",
     label: "Activity",
     icon: BarChart3,
+  },
+  {
+    href: "/admin/learning",
+    label: "Learning",
+    icon: GraduationCap,
   },
   {
   href: "/admin/feedback",

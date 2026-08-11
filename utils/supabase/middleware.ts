@@ -30,7 +30,7 @@ export async function updateSession(request: NextRequest) {
   // Do not add logic between createServerClient and this call — reading
   // the user is what actually triggers a token refresh when needed, and
   // the refreshed cookies have to flow through supabaseResponse below.
-  await supabase.auth.getUser();
+  await supabase.auth.getClaims();
 
   return supabaseResponse;
 }

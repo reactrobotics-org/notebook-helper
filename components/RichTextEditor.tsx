@@ -13,15 +13,22 @@ const ResizableImage = TiptapImage.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+
       width: {
         default: "50%",
+
         parseHTML: (element) =>
-          element.style.width || element.getAttribute("width") || "50%",
+          element.style.width ||
+          element.getAttribute("width") ||
+          "50%",
+
         renderHTML: (attributes) => {
-          if (!attributes.width) return {};
+          if (!attributes.width) {
+            return {};
+          }
 
           return {
-            style: `width: ${attributes.width}; max-width: 100%; height: auto;`,
+            style: `display:block;width:${attributes.width};max-width:100%;height:auto;margin:1rem auto;`,
           };
         },
       },
@@ -29,7 +36,11 @@ const ResizableImage = TiptapImage.extend({
   },
 });
 
-type ImageSize = "small" | "medium" | "large" | "full";
+type ImageSize =
+  | "small"
+  | "medium"
+  | "large"
+  | "full";
 
 type Props = {
   value: string;
@@ -60,7 +71,7 @@ function ToolbarButton({
       disabled={disabled}
       className={`rounded border px-2 py-1 text-sm font-medium hover:bg-[#EEF8FF] disabled:cursor-not-allowed disabled:opacity-50 ${
         active
-          ? "border-blue-600 bg-[#8ED4FF] text-[#1C1F23] text-white"
+          ? "border-blue-600 bg-[#8ED4FF] text-[#1C1F23]"
           : "border-slate-300 bg-white text-slate-700"
       }`}
     >
@@ -70,7 +81,9 @@ function ToolbarButton({
 }
 
 function Separator() {
-  return <div className="mx-1 h-7 border-l border-slate-300" />;
+  return (
+    <div className="mx-1 h-7 border-l border-slate-300" />
+  );
 }
 
 export default function RichTextEditor({
@@ -80,22 +93,41 @@ export default function RichTextEditor({
   enableImages = true,
   enableAI = true,
 }: Props) {
-  const [imagePickerOpen, setImagePickerOpen] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState("");
-  const [imageSelected, setImageSelected] = useState(false);
-    const editor = useEditor({
+  const [imagePickerOpen, setImagePickerOpen] =
+    useState(false);
+
+  const [aiLoading, setAiLoading] =
+    useState(false);
+
+  const [aiSuggestions, setAiSuggestions] =
+    useState("");
+
+  const [imageSelected, setImageSelected] =
+    useState(false);
+
+  const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: false,
+        underline: false,
+        horizontalRule: false,
+      }),
+
       Underline,
+
       Link.configure({
         openOnClick: false,
       }),
+
       HorizontalRule,
+
       ResizableImage,
-      ],
+    ],
+
     content: value,
+
     immediatelyRender: false,
+
     editorProps: {
       attributes: {
         "data-placeholder": placeholder,
@@ -103,11 +135,15 @@ export default function RichTextEditor({
         lang: "en",
       },
     },
+
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
+
     onSelectionUpdate: ({ editor }) => {
-      setImageSelected(editor.isActive("image"));
+      setImageSelected(
+        editor.isActive("image")
+      );
     },
   });
 
@@ -118,134 +154,242 @@ export default function RichTextEditor({
   const currentEditor = editor;
 
   function setLink() {
-      if (!editor) return;
+    const previousUrl =
+      currentEditor.getAttributes(
+        "link"
+      ).href;
 
-      const previousUrl = editor.getAttributes("link").href;
-      const url = window.prompt("Enter a URL", previousUrl || "");
+    const url = window.prompt(
+      "Enter a URL",
+      previousUrl || ""
+    );
 
-      if (URL === null) {
-        return;
+    if (url === null) {
+      return;
     }
 
-      if (url === "") {
-        editor.chain().focus().unsetLink().run();
-        return;
+    if (url === "") {
+      currentEditor
+        .chain()
+        .focus()
+        .unsetLink()
+        .run();
+
+      return;
     }
 
-    editor.chain().focus().setLink({ href: url as string }).run();
-  }
-
-  function widthForSize(size: ImageSize) {
-    if (size === "small") return "25%";
-    if (size === "medium") return "35%";
-    if (size === "large") return "50%";
-    return "75%";
-  }
-
-  function addImage(imageUrl: string, size: ImageSize = "medium") {
-    if (!editor) return;
-
-    editor
+    currentEditor
       .chain()
       .focus()
-      .insertContent({
-        type: "image",
-        attrs: { src: imageUrl, width: widthForSize(size) },
+      .setLink({
+        href: url,
       })
       .run();
   }
 
-  function setImageWidth(size: ImageSize) {
-    if (!editor) return;
+  function widthForSize(
+    size: ImageSize
+  ) {
+    if (size === "small") {
+      return "25%";
+    }
 
-    editor.chain().focus().updateAttributes("image", { width: widthForSize(size) }).run();
-  
+    if (size === "medium") {
+      return "50%";
+    }
+
+    if (size === "large") {
+      return "75%";
+    }
+
+    return "100%";
+  }
+
+  function addImage(
+    imageUrl: string,
+    size: ImageSize = "medium"
+  ) {
+    currentEditor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "image",
+
+        attrs: {
+          src: imageUrl,
+          width:
+            widthForSize(size),
+        },
+      })
+      .run();
+  }
+
+  function setImageWidth(
+    size: ImageSize
+  ) {
+    currentEditor
+      .chain()
+      .focus()
+      .updateAttributes("image", {
+        width:
+          widthForSize(size),
+      })
+      .run();
   }
 
   async function improveWriting() {
-    if (!editor) return;
     setAiLoading(true);
     setAiSuggestions("");
 
     try {
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "improve-writing",
-          text: editor.getHTML(),
-        }),
-      });
+      const response =
+        await fetch("/api/ai", {
+          method: "POST",
 
-      const contentType = response.headers.get("content-type");
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-      if (!contentType?.includes("application/json")) {
-        const text = await response.text();
-        console.error("Non-JSON response:", text);
-        setAiSuggestions("The AI route returned an unexpected response. Check the terminal for errors.");
+          body: JSON.stringify({
+            action:
+              "improve-writing",
+            text:
+              currentEditor.getHTML(),
+          }),
+        });
+
+      const contentType =
+        response.headers.get(
+          "content-type"
+        );
+
+      if (
+        !contentType?.includes(
+          "application/json"
+        )
+      ) {
+        const text =
+          await response.text();
+
+        console.error(
+          "Non-JSON response:",
+          text
+        );
+
+        setAiSuggestions(
+          "The AI route returned an unexpected response. Check the terminal for errors."
+        );
+
         return;
-}
+      }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        setAiSuggestions(data.error || "Unable to improve writing.");
+        setAiSuggestions(
+          data.error ||
+            "Unable to improve writing."
+        );
+
         return;
       }
 
       if (data.result) {
-        editor.commands.setContent(data.result);
+        currentEditor.commands.setContent(
+          data.result
+        );
+
         onChange(data.result);
       }
     } catch (error) {
-      console.error("Improve writing error:", error);
-      setAiSuggestions("Unable to connect to the AI helper.");
+      console.error(
+        "Improve writing error:",
+        error
+      );
+
+      setAiSuggestions(
+        "Unable to connect to the AI helper."
+      );
     } finally {
       setAiLoading(false);
     }
   }
 
   async function suggestDetails() {
-    if (!editor) return;
     setAiLoading(true);
     setAiSuggestions("");
 
     try {
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "suggest-details",
-          text: editor.getHTML(),
-        }),
-      });
+      const response =
+        await fetch("/api/ai", {
+          method: "POST",
 
-      const contentType = response.headers.get("content-type");
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-      if (!contentType?.includes("application/json")) {
-        const text = await response.text();
-        console.error("Non-JSON response:", text);
-        setAiSuggestions("The AI route returned an unexpected response. Check the terminal for errors.");
+          body: JSON.stringify({
+            action:
+              "suggest-details",
+            text:
+              currentEditor.getHTML(),
+          }),
+        });
+
+      const contentType =
+        response.headers.get(
+          "content-type"
+        );
+
+      if (
+        !contentType?.includes(
+          "application/json"
+        )
+      ) {
+        const text =
+          await response.text();
+
+        console.error(
+          "Non-JSON response:",
+          text
+        );
+
+        setAiSuggestions(
+          "The AI route returned an unexpected response. Check the terminal for errors."
+        );
+
         return;
-        }
+      }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        setAiSuggestions(data.error || "Unable to generate suggestions.");
+        setAiSuggestions(
+          data.error ||
+            "Unable to generate suggestions."
+        );
+
         return;
       }
 
       if (data.result) {
-        setAiSuggestions(data.result);
+        setAiSuggestions(
+          data.result
+        );
       }
     } catch (error) {
-      console.error("Suggest details error:", error);
-      setAiSuggestions("Unable to connect to the AI helper.");
+      console.error(
+        "Suggest details error:",
+        error
+      );
+
+      setAiSuggestions(
+        "Unable to connect to the AI helper."
+      );
     } finally {
       setAiLoading(false);
     }
@@ -257,22 +401,46 @@ export default function RichTextEditor({
         <ToolbarButton
           label="B"
           title="Bold"
-          active={editor.isActive("bold")}
-          onClick={() => editor.chain().focus().toggleBold().run()}
+          active={currentEditor.isActive(
+            "bold"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleBold()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="I"
           title="Italic"
-          active={editor.isActive("italic")}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
+          active={currentEditor.isActive(
+            "italic"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleItalic()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="U"
           title="Underline"
-          active={editor.isActive("underline")}
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          active={currentEditor.isActive(
+            "underline"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleUnderline()
+              .run()
+          }
         />
 
         <Separator />
@@ -280,18 +448,40 @@ export default function RichTextEditor({
         <ToolbarButton
           label="H1"
           title="Heading 1"
-          active={editor.isActive("heading", { level: 1 })}
+          active={currentEditor.isActive(
+            "heading",
+            {
+              level: 1,
+            }
+          )}
           onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
+            currentEditor
+              .chain()
+              .focus()
+              .toggleHeading({
+                level: 1,
+              })
+              .run()
           }
         />
 
         <ToolbarButton
           label="H2"
           title="Heading 2"
-          active={editor.isActive("heading", { level: 2 })}
+          active={currentEditor.isActive(
+            "heading",
+            {
+              level: 2,
+            }
+          )}
           onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
+            currentEditor
+              .chain()
+              .focus()
+              .toggleHeading({
+                level: 2,
+              })
+              .run()
           }
         />
 
@@ -300,15 +490,31 @@ export default function RichTextEditor({
         <ToolbarButton
           label="•"
           title="Bullet List"
-          active={editor.isActive("bulletList")}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          active={currentEditor.isActive(
+            "bulletList"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleBulletList()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="1."
           title="Numbered List"
-          active={editor.isActive("orderedList")}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          active={currentEditor.isActive(
+            "orderedList"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleOrderedList()
+              .run()
+          }
         />
 
         <Separator />
@@ -316,27 +522,51 @@ export default function RichTextEditor({
         <ToolbarButton
           label="Quote"
           title="Quote"
-          active={editor.isActive("blockquote")}
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          active={currentEditor.isActive(
+            "blockquote"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleBlockquote()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="Code"
           title="Code Block"
-          active={editor.isActive("codeBlock")}
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          active={currentEditor.isActive(
+            "codeBlock"
+          )}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .toggleCodeBlock()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="―"
           title="Horizontal Line"
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .setHorizontalRule()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="Link"
           title="Add or Remove Link"
-          active={editor.isActive("link")}
+          active={currentEditor.isActive(
+            "link"
+          )}
           onClick={setLink}
         />
 
@@ -344,7 +574,9 @@ export default function RichTextEditor({
           <ToolbarButton
             label="Image"
             title="Insert Image"
-            onClick={() => setImagePickerOpen(true)}
+            onClick={() =>
+              setImagePickerOpen(true)
+            }
           />
         )}
 
@@ -353,17 +585,29 @@ export default function RichTextEditor({
         {enableAI && (
           <>
             <ToolbarButton
-              label={aiLoading ? "Working..." : "Improve"}
+              label={
+                aiLoading
+                  ? "Working..."
+                  : "Improve"
+              }
               title="Improve Writing"
               disabled={aiLoading}
-              onClick={improveWriting}
+              onClick={
+                improveWriting
+              }
             />
 
             <ToolbarButton
-              label={aiLoading ? "Working..." : "Suggest"}
+              label={
+                aiLoading
+                  ? "Working..."
+                  : "Suggest"
+              }
               title="Suggest Missing Engineering Details"
               disabled={aiLoading}
-              onClick={suggestDetails}
+              onClick={
+                suggestDetails
+              }
             />
 
             <Separator />
@@ -373,80 +617,150 @@ export default function RichTextEditor({
         <ToolbarButton
           label="↶"
           title="Undo"
-          onClick={() => editor.chain().focus().undo().run()}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .undo()
+              .run()
+          }
         />
 
         <ToolbarButton
           label="↷"
           title="Redo"
-          onClick={() => editor.chain().focus().redo().run()}
+          onClick={() =>
+            currentEditor
+              .chain()
+              .focus()
+              .redo()
+              .run()
+          }
         />
       </div>
+
       {imageSelected && (
-        <div className="flex flex-wrap items-center gap-2 border-b bg-[#EEF8FF] p-2">
-          <span className="text-sm font-medium text-slate-700">
+        <div className="sticky top-16 z-30 flex flex-wrap items-center gap-2 border-y border-sky-200 bg-[#EEF8FF] p-3 shadow-md">
+          <span className="mr-1 text-sm font-bold text-slate-700">
             Image size:
           </span>
 
           <ToolbarButton
-            label="S"
-            title="Small"
-            active={editor.getAttributes("image").width === "25%"}
-            onClick={() => setImageWidth("small")}
+            label="25%"
+            title="25% Width"
+            active={
+              currentEditor.getAttributes(
+                "image"
+              ).width === "25%"
+            }
+            onClick={() =>
+              setImageWidth("small")
+            }
           />
 
           <ToolbarButton
-            label="M"
-            title="Medium"
-            active={editor.getAttributes("image").width === "50%"}
-            onClick={() => setImageWidth("medium")}
+            label="50%"
+            title="50% Width"
+            active={
+              currentEditor.getAttributes(
+                "image"
+              ).width === "50%"
+            }
+            onClick={() =>
+              setImageWidth("medium")
+            }
           />
 
           <ToolbarButton
-            label="L"
-            title="Large"
-            active={editor.getAttributes("image").width === "75%"}
-            onClick={() => setImageWidth("large")}
+            label="75%"
+            title="75% Width"
+            active={
+              currentEditor.getAttributes(
+                "image"
+              ).width === "75%"
+            }
+            onClick={() =>
+              setImageWidth("large")
+            }
           />
 
           <ToolbarButton
-            label="Full"
+            label="100%"
             title="Full Width"
-            active={editor.getAttributes("image").width === "100%"}
-            onClick={() => setImageWidth("full")}
+            active={
+              currentEditor.getAttributes(
+                "image"
+              ).width === "100%"
+            }
+            onClick={() =>
+              setImageWidth("full")
+            }
           />
         </div>
       )}
 
       <EditorContent
-        editor={editor}
+        editor={currentEditor}
         className="
           min-h-[250px] p-4 text-base text-slate-900
+
           [&_.ProseMirror]:min-h-[220px]
           [&_.ProseMirror]:text-slate-900
           [&_.ProseMirror]:outline-none
-          [&_.ProseMirror]:outline-none
+
           [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]
           [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left
           [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-slate-400
           [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none
-          [&_h1]:mb-3 [&_h1]:text-3xl [&_h1]:font-bold
-          [&_h2]:mb-2 [&_h2]:text-2xl [&_h2]:font-bold
+
+          [&_h1]:mb-3
+          [&_h1]:text-3xl
+          [&_h1]:font-bold
+
+          [&_h2]:mb-2
+          [&_h2]:text-2xl
+          [&_h2]:font-bold
+
           [&_p]:mb-2
-          [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6
-          [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6
-          [&_blockquote]:mb-3 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-slate-600
-          [&_pre]:mb-3 [&_pre]:rounded [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-white
-          [&_code]:rounded [&_code]:bg-slate-100 [&_code]:px-1
-          [&_a]:text-blue-600 [&_a]:underline
+
+          [&_ul]:mb-3
+          [&_ul]:list-disc
+          [&_ul]:pl-6
+
+          [&_ol]:mb-3
+          [&_ol]:list-decimal
+          [&_ol]:pl-6
+
+          [&_blockquote]:mb-3
+          [&_blockquote]:border-l-4
+          [&_blockquote]:border-slate-300
+          [&_blockquote]:pl-4
+          [&_blockquote]:italic
+          [&_blockquote]:text-slate-600
+
+          [&_pre]:mb-3
+          [&_pre]:rounded
+          [&_pre]:bg-slate-900
+          [&_pre]:p-3
+          [&_pre]:text-white
+
+          [&_code]:rounded
+          [&_code]:bg-slate-100
+          [&_code]:px-1
+
+          [&_a]:text-blue-600
+          [&_a]:underline
+
           [&_hr]:my-6
           [&_hr]:border-0
           [&_hr]:border-t-2
           [&_hr]:border-slate-300
+
           [&_img]:my-4
           [&_img]:max-w-full
           [&_img]:rounded
           [&_img]:border
+
           [&_.ProseMirror-selectednode]:outline
           [&_.ProseMirror-selectednode]:outline-2
           [&_.ProseMirror-selectednode]:outline-[#8ED4FF]
@@ -456,11 +770,15 @@ export default function RichTextEditor({
       {aiSuggestions && (
         <div className="border-t bg-[#EEF8FF] p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-semibold text-[#1C1F23]">AI Suggestions</h3>
+            <h3 className="font-semibold text-[#1C1F23]">
+              AI Suggestions
+            </h3>
 
             <button
               type="button"
-              onClick={() => setAiSuggestions("")}
+              onClick={() =>
+                setAiSuggestions("")
+              }
               className="text-sm text-blue-700 hover:underline"
             >
               Clear
@@ -469,15 +787,25 @@ export default function RichTextEditor({
 
           <div
             className="prose max-w-none text-sm text-blue-950"
-            dangerouslySetInnerHTML={{ __html: aiSuggestions }}
+            dangerouslySetInnerHTML={{
+              __html:
+                aiSuggestions,
+            }}
           />
         </div>
       )}
 
       <ImagePicker
         open={imagePickerOpen}
-        onClose={() => setImagePickerOpen(false)}
-        onSelect={(imageUrl) => addImage(imageUrl, "medium")}
+        onClose={() =>
+          setImagePickerOpen(false)
+        }
+        onSelect={(imageUrl) =>
+          addImage(
+            imageUrl,
+            "medium"
+          )
+        }
       />
     </div>
   );

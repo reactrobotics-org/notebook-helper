@@ -27,6 +27,7 @@ const links = [
   { href: "/images", label: "Images" },
   { href: "/meeting-notes", label: "Meeting Notes" },
   { href: "/scratchpad", label: "Scratchpad" },
+  { href: "/learning", label: "Learning" },
   { href: "/teams", label: "Team" },
   { href: "/scoreboard", label: "Scoreboard" },
 ];

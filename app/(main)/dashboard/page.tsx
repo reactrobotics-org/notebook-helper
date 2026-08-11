@@ -6,7 +6,7 @@ import {
   Camera,
   NotebookPen,
   Users,
-  CheckSquare,
+  GraduationCap,
 } from "lucide-react";
 
 type TeamInfo = {
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   let imageCount = 0;
   let meetingCount = 0;
   let memberCount = 0;
-  let actionCount = 0;
+  let learningProgress = "0/0";
 
   let recentMeetings: any[] = [];
   let recentImages: any[] = [];
@@ -117,8 +117,25 @@ export default async function DashboardPage() {
     recentMeetings = meetingsData ?? [];
     recentImages = imagesData ?? [];
 
-    // Placeholder until we build task tracking
-    actionCount = 0;
+    const { data: learningModules } = await supabase
+      .from("learning_modules")
+      .select("id")
+      .eq("published", true);
+
+    if (learningModules) {
+      const learningModuleIds = learningModules.map((module) => module.id);
+      const { data: passedAttempts } = learningModuleIds.length
+        ? await supabase
+            .from("learning_quiz_attempts")
+            .select("module_id")
+            .eq("user_id", user.id)
+            .eq("passed", true)
+            .in("module_id", learningModuleIds)
+        : { data: [] };
+
+      const passedCount = new Set((passedAttempts ?? []).map((attempt) => attempt.module_id)).size;
+      learningProgress = `${passedCount}/${learningModuleIds.length}`;
+    }
   }
 
   return (
@@ -165,10 +182,10 @@ export default async function DashboardPage() {
           />
 
           <DashboardCard
-            title="Action Items"
-            value={actionCount}
-            icon={CheckSquare}
-            href="/meeting-notes"
+            title="Learning"
+            value={learningProgress}
+            icon={GraduationCap}
+            href="/learning"
           />
 
         </div>
