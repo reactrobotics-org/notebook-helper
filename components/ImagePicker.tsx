@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Camera } from "lucide-react";
+import { Camera, ImagePlus } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/compressImage";
 
@@ -22,9 +22,16 @@ type Props = {
   onSelect: (imageUrl: string, size: ImageSize) => void;
 };
 
-export default function ImagePicker({ open, onClose, onSelect }: Props) {
+export default function ImagePicker({
+  open,
+  onClose,
+  onSelect,
+}: Props) {
   const supabase = createClient();
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -75,8 +82,11 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
     setLoading(false);
   }
 
-  async function handleCapture(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageSelected(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
     const file = event.target.files?.[0];
+
     if (!file) return;
 
     setUploading(true);
@@ -99,7 +109,9 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
       .single();
 
     if (!profile?.team_id) {
-      setUploadError("Your account is not assigned to a team yet.");
+      setUploadError(
+        "Your account is not assigned to a team yet."
+      );
       setUploading(false);
       return;
     }
@@ -123,12 +135,14 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
       .from("images")
       .getPublicUrl(fileName);
 
-    const { error: insertErr } = await supabase.from("image_entries").insert({
-      team_id: profile.team_id,
-      created_by: user.id,
-      title: "Meeting Note Photo",
-      image_url: publicUrlData.publicUrl,
-    });
+    const { error: insertErr } = await supabase
+      .from("image_entries")
+      .insert({
+        team_id: profile.team_id,
+        created_by: user.id,
+        title: "Meeting Note Photo",
+        image_url: publicUrlData.publicUrl,
+      });
 
     if (insertErr) {
       setUploadError(`Database error: ${insertErr.message}`);
@@ -140,6 +154,10 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
 
     if (cameraInputRef.current) {
       cameraInputRef.current.value = "";
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
 
     onSelect(publicUrlData.publicUrl, "medium");
@@ -163,40 +181,66 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
           </button>
         </div>
 
-        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+        <div className="mb-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
           <input
             ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
-            onChange={handleCapture}
+            onChange={handleImageSelected}
             className="hidden"
           />
 
-          <button
-            type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={uploading}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black disabled:opacity-50"
-          >
-            <Camera size={18} />
-            {uploading ? "Uploading..." : "Take a Photo"}
-          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelected}
+            className="hidden"
+          />
 
-          <p className="text-sm text-slate-600">
-            Snap a new photo and it will be added here and to your team&apos;s
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black disabled:opacity-50"
+            >
+              <Camera size={18} />
+
+              {uploading ? "Uploading..." : "Take a Photo"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-[#1C1F23] hover:bg-slate-100 disabled:opacity-50"
+            >
+              <ImagePlus size={18} />
+              Choose Existing Image
+            </button>
+          </div>
+
+          <p className="mt-3 text-sm text-slate-600">
+            Take a new photo or choose one already saved on your
+            device. The image will also be added to your team&apos;s
             Images gallery.
           </p>
         </div>
 
         {uploadError && (
-          <p className="mb-4 text-sm text-red-600">{uploadError}</p>
+          <p className="mb-4 text-sm text-red-600">
+            {uploadError}
+          </p>
         )}
 
         {loading && <p>Loading images...</p>}
 
         {!loading && images.length === 0 && (
-          <p className="text-slate-600">No team images found.</p>
+          <p className="text-slate-600">
+            No team images found.
+          </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
@@ -205,7 +249,7 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
               key={image.id}
               type="button"
               onClick={() => {
-                onSelect(image.image_url,"medium");
+                onSelect(image.image_url, "medium");
                 onClose();
               }}
               className="rounded border bg-white p-3 text-left hover:bg-slate-50"
@@ -218,7 +262,9 @@ export default function ImagePicker({ open, onClose, onSelect }: Props) {
                 className="mb-2 h-40 w-full rounded object-cover"
               />
 
-              <div className="font-medium">{image.title || "Untitled"}</div>
+              <div className="font-medium">
+                {image.title || "Untitled"}
+              </div>
 
               {image.description && (
                 <p className="mt-1 line-clamp-2 text-sm text-slate-600">

@@ -11,11 +11,13 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import ResetStudentPassword from "@/components/ResetStudentPassword";
 import UpdateUserForm from "@/components/UpdateUserForm";
 
-
 const PAGE_SIZE = 20;
+const STUDENT_USERNAME_DOMAIN = "students.local";
 
 type Role = "Student" | "Mentor" | "Admin";
 
@@ -33,15 +35,15 @@ type Profile = {
   team_id: string | null;
   created_at: string | null;
   teams?:
-  | {
-      team_number: string | null;
-      team_name: string | null;
-    }
-  | {
-      team_number: string | null;
-      team_name: string | null;
-    }[]
-  | null;
+    | {
+        team_number: string | null;
+        team_name: string | null;
+      }
+    | {
+        team_number: string | null;
+        team_name: string | null;
+      }[]
+    | null;
 };
 
 const roles: Role[] = ["Student", "Mentor", "Admin"];
@@ -64,8 +66,8 @@ async function getCurrentAdmin() {
     .single();
 
   if ((profile?.role ?? "").toLowerCase() !== "admin") {
-  redirect("/dashboard");
-}
+    redirect("/dashboard");
+  }
 
   return { supabase, user };
 }
@@ -88,6 +90,12 @@ function formatDate(value: string | null) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function isStudentUsernameAccount(email: string | null) {
+  return (
+    email?.toLowerCase().endsWith(`@${STUDENT_USERNAME_DOMAIN}`) ?? false
+  );
 }
 
 async function updateUser(
@@ -124,7 +132,10 @@ async function updateUser(
 
   if (error) {
     console.error("Error updating user:", error);
-    return { success: false, message: `Error updating user: ${error.message}` };
+    return {
+      success: false,
+      message: `Error updating user: ${error.message}`,
+    };
   }
 
   if (!data || data.length === 0) {
@@ -166,6 +177,66 @@ async function removeUserFromTeam(formData: FormData) {
   revalidatePath("/admin");
 }
 
+async function resetStudentPassword(formData: FormData) {
+  "use server";
+
+  await getCurrentAdmin();
+
+  const userId = String(formData.get("user_id") ?? "");
+  const password = String(formData.get("password") ?? "");
+
+  if (!userId) {
+    redirect("/admin/users?error=password_reset_failed");
+  }
+
+  if (password.length < 6) {
+    redirect("/admin/users?error=weak_password");
+  }
+
+  const admin = createAdminClient();
+
+  const { data: authUser, error: getUserError } =
+    await admin.auth.admin.getUserById(userId);
+
+  if (getUserError || !authUser?.user) {
+    console.error("Error finding student auth account:", getUserError);
+    redirect("/admin/users?error=password_reset_failed");
+  }
+
+  const email = authUser.user.email?.toLowerCase() ?? "";
+
+  if (!email.endsWith(`@${STUDENT_USERNAME_DOMAIN}`)) {
+    console.error(
+      "Password reset blocked because the account is not a students.local account."
+    );
+    redirect("/admin/users?error=not_local_account");
+  }
+
+  const { error: updatePasswordError } =
+    await admin.auth.admin.updateUserById(userId, {
+      password,
+    });
+
+  if (updatePasswordError) {
+  console.error("Error resetting student password:", updatePasswordError);
+
+  if (updatePasswordError.code === "weak_password") {
+    redirect("/admin/users?error=weak_password");
+  }
+
+    redirect("/admin/users?error=password_reset_failed");
+  }
+
+
+  const username = email.replace(`@${STUDENT_USERNAME_DOMAIN}`, "");
+
+  revalidatePath("/admin/users");
+
+  redirect(
+    `/admin/users?password_reset=${encodeURIComponent(username)}`
+  );
+}
+
 async function deleteUser(formData: FormData) {
   "use server";
 
@@ -200,6 +271,7 @@ export default async function AdminUsersPage({
     team?: string;
     page?: string;
     error?: string;
+    password_reset?: string;
   }>;
 }) {
   const { supabase } = await getCurrentAdmin();
@@ -208,7 +280,10 @@ export default async function AdminUsersPage({
   const search = String(params?.q ?? "").trim();
   const roleFilter = String(params?.role ?? "all");
   const teamFilter = String(params?.team ?? "all");
-  const currentPage = Math.max(1, parseInt(params?.page ?? "1", 10) || 1);
+  const currentPage = Math.max(
+    1,
+    parseInt(params?.page ?? "1", 10) || 1
+  );
 
   const from = (currentPage - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -262,7 +337,9 @@ export default async function AdminUsersPage({
       .from("teams")
       .select("id, team_number, team_name")
       .order("team_number", { ascending: true }),
-    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true }),
     supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
@@ -282,14 +359,20 @@ export default async function AdminUsersPage({
 
   const totalUsers = totalUsersCount ?? 0;
   const matchingCount = filteredCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(matchingCount / PAGE_SIZE)
+  );
 
   function buildPageHref(page: number) {
     const qs = new URLSearchParams();
+
     if (search) qs.set("q", search);
     if (roleFilter !== "all") qs.set("role", roleFilter);
     if (teamFilter !== "all") qs.set("team", teamFilter);
+
     qs.set("page", String(page));
+
     return `/admin/users?${qs.toString()}`;
   }
 
@@ -305,8 +388,10 @@ export default async function AdminUsersPage({
             <h1 className="text-5xl font-bold text-[#1C1F23]">
               User Management
             </h1>
+
             <p className="mt-2 text-lg text-slate-600">
-              Assign users to teams and promote users to Student, Mentor, or Admin.
+              Assign users to teams and promote users to Student, Mentor,
+              or Admin.
             </p>
           </div>
 
@@ -318,14 +403,21 @@ export default async function AdminUsersPage({
           </Link>
         </div>
 
+        {params?.password_reset && (
+          <div className="mb-6 rounded-xl bg-green-50 p-4 text-green-900">
+            Password successfully reset for{" "}
+            <strong>{params.password_reset}</strong>.
+          </div>
+        )}
+
         {params?.error === "update_failed" && (
           <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
             <AlertTriangle size={20} className="shrink-0" />
             <p>
-              Nothing was updated. This usually means a Supabase Row Level
-              Security policy is blocking the update — check the UPDATE
-              policy on profiles covers Admins for rows they didn&apos;t
-              create.
+              Nothing was updated. This usually means a Supabase Row
+              Level Security policy is blocking the update — check the
+              UPDATE policy on profiles covers Admins for rows they
+              didn&apos;t create.
             </p>
           </div>
         )}
@@ -336,8 +428,8 @@ export default async function AdminUsersPage({
             <p>
               The user wasn&apos;t removed from their team. This usually
               means a Supabase Row Level Security policy is blocking the
-              update — check the UPDATE policy on profiles covers Admins for
-              rows they didn&apos;t create.
+              update — check the UPDATE policy on profiles covers Admins
+              for rows they didn&apos;t create.
             </p>
           </div>
         )}
@@ -346,18 +438,67 @@ export default async function AdminUsersPage({
           <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
             <AlertTriangle size={20} className="shrink-0" />
             <p>
-              Nothing was deleted. This usually means a Supabase Row Level
-              Security policy is blocking the delete — check that a DELETE
-              policy exists on profiles for Admins.
+              Nothing was deleted. This usually means a Supabase Row
+              Level Security policy is blocking the delete — check that a
+              DELETE policy exists on profiles for Admins.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "weak_password" && (
+            <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              Password must include at least one uppercase letter, one lowercase
+              letter, one number, and one special character.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "not_local_account" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              Password resets from this page are only available for
+              username accounts ending in @students.local.
+            </p>
+          </div>
+        )}
+
+        {params?.error === "password_reset_failed" && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+            <AlertTriangle size={20} className="shrink-0" />
+            <p>
+              The password could not be reset. Check the server logs for
+              the Supabase Auth error.
             </p>
           </div>
         )}
 
         <div className="mb-8 grid gap-6 md:grid-cols-4">
-          <StatCard icon={<Users size={22} />} label="Total Users" value={totalUsers} />
-          <StatCard icon={<GraduationCap size={22} />} label="Students" value={studentCount ?? 0} />
-          <StatCard icon={<ClipboardCheck size={22} />} label="Mentors" value={mentorCount ?? 0} />
-          <StatCard icon={<ShieldCheck size={22} />} label="Admins" value={adminCount ?? 0} />
+          <StatCard
+            icon={<Users size={22} />}
+            label="Total Users"
+            value={totalUsers}
+          />
+
+          <StatCard
+            icon={<GraduationCap size={22} />}
+            label="Students"
+            value={studentCount ?? 0}
+          />
+
+          <StatCard
+            icon={<ClipboardCheck size={22} />}
+            label="Mentors"
+            value={mentorCount ?? 0}
+          />
+
+          <StatCard
+            icon={<ShieldCheck size={22} />}
+            label="Admins"
+            value={adminCount ?? 0}
+          />
         </div>
 
         <section className="mb-8 rounded-2xl bg-white p-6 shadow">
@@ -366,11 +507,13 @@ export default async function AdminUsersPage({
               <label className="mb-1 block font-semibold text-slate-700">
                 Search Users
               </label>
+
               <div className="relative">
                 <Search
                   size={18}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
+
                 <input
                   name="q"
                   defaultValue={params?.q ?? ""}
@@ -384,12 +527,14 @@ export default async function AdminUsersPage({
               <label className="mb-1 block font-semibold text-slate-700">
                 Role
               </label>
+
               <select
                 name="role"
                 defaultValue={roleFilter}
                 className="w-full rounded-lg border border-slate-300 bg-white p-3"
               >
                 <option value="all">All Roles</option>
+
                 {roles.map((role) => (
                   <option key={role} value={role}>
                     {role}
@@ -402,6 +547,7 @@ export default async function AdminUsersPage({
               <label className="mb-1 block font-semibold text-slate-700">
                 Team
               </label>
+
               <select
                 name="team"
                 defaultValue={teamFilter}
@@ -409,10 +555,13 @@ export default async function AdminUsersPage({
               >
                 <option value="all">All Teams</option>
                 <option value="none">No Team</option>
+
                 {teamList.map((team) => (
                   <option key={team.id} value={team.id}>
                     {team.team_number}
-                    {team.team_name ? ` - ${team.team_name}` : ""}
+                    {team.team_name
+                      ? ` - ${team.team_name}`
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -437,7 +586,10 @@ export default async function AdminUsersPage({
         </section>
 
         <section className="rounded-2xl bg-white p-6 shadow">
-          <h2 className="mb-1 text-2xl font-bold text-[#1C1F23]">Users</h2>
+          <h2 className="mb-1 text-2xl font-bold text-[#1C1F23]">
+            Users
+          </h2>
+
           <p className="mb-5 text-slate-600">
             Showing {userList.length} of {matchingCount} matching user
             {matchingCount === 1 ? "" : "s"} (page {currentPage} of{" "}
@@ -460,7 +612,10 @@ export default async function AdminUsersPage({
 
               <tbody>
                 {userList.map((profile) => (
-                  <tr key={profile.id} className="border-b align-top">
+                  <tr
+                    key={profile.id}
+                    className="border-b align-top"
+                  >
                     <td className="p-3 font-semibold text-[#1C1F23]">
                       {profile.full_name || "No name"}
                     </td>
@@ -469,7 +624,9 @@ export default async function AdminUsersPage({
                       {profile.email || "No email"}
                     </td>
 
-                    <td className="p-3 text-slate-600">{formatTeam(profile)}</td>
+                    <td className="p-3 text-slate-600">
+                      {formatTeam(profile)}
+                    </td>
 
                     <td className="p-3 text-slate-600">
                       {formatDate(profile.created_at)}
@@ -479,18 +636,46 @@ export default async function AdminUsersPage({
                       <UpdateUserForm
                         key={`${profile.id}-${profile.role ?? "Student"}-${profile.team_id ?? "none"}`}
                         userId={profile.id}
-                        currentRole={(profile.role ?? "Student") as "Student" | "Mentor" | "Admin"}
+                        currentRole={
+                          (profile.role ?? "Student") as
+                            | "Student"
+                            | "Mentor"
+                            | "Admin"
+                        }
                         currentTeamId={profile.team_id}
                         teams={teamList}
                         roles={roles}
                         updateUserAction={updateUser}
                       />
+
+                      {isStudentUsernameAccount(profile.email) && (
+                        <ResetStudentPassword
+                          userId={profile.id}
+                          displayName={
+                            profile.full_name ||
+                            profile.email ||
+                            "this user"
+                          }
+                          resetPasswordAction={resetStudentPassword}
+                        />
+                      )}
+
                       {profile.team_id && (
-                        <form action={removeUserFromTeam} className="mt-2">
-                          <input type="hidden" name="user_id" value={profile.id} />
+                        <form
+                          action={removeUserFromTeam}
+                          className="mt-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="user_id"
+                            value={profile.id}
+                          />
+
                           <ConfirmSubmitButton
                             confirmMessage={`Remove ${
-                              profile.full_name || profile.email || "this user"
+                              profile.full_name ||
+                              profile.email ||
+                              "this user"
                             } from their team?`}
                             className="text-sm font-semibold text-red-600 hover:underline"
                           >
@@ -498,12 +683,23 @@ export default async function AdminUsersPage({
                           </ConfirmSubmitButton>
                         </form>
                       )}
+
                       {profile.id !== undefined && (
-                        <form action={deleteUser} className="mt-2">
-                          <input type="hidden" name="user_id" value={profile.id} />
+                        <form
+                          action={deleteUser}
+                          className="mt-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="user_id"
+                            value={profile.id}
+                          />
+
                           <ConfirmSubmitButton
                             confirmMessage={`Permanently delete ${
-                              profile.full_name || profile.email || "this user"
+                              profile.full_name ||
+                              profile.email ||
+                              "this user"
                             }? This cannot be undone.`}
                             className="text-sm font-semibold text-red-700 hover:underline"
                           >
@@ -569,10 +765,14 @@ function StatCard({
       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F6FF] text-[#1C1F23]">
         {icon}
       </div>
+
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-4xl font-bold text-[#1C1F23]">{value}</p>
+
+      <p className="mt-2 text-4xl font-bold text-[#1C1F23]">
+        {value}
+      </p>
     </div>
   );
 }

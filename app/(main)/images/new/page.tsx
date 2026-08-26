@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { v4 as uuidv4 } from "uuid";
+import { Camera, ImagePlus } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/compressImage";
 
 type ImageForm = {
-  image: FileList;
   title: string;
   category: string;
   subsystem: string;
@@ -17,7 +17,20 @@ type ImageForm = {
 export default function NewImagePage() {
   const supabase = createClient();
   const { register, handleSubmit, reset } = useForm<ImageForm>();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
+
+  function handleImageSelected(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0] ?? null;
+
+    setSelectedFile(file);
+    setMessage("");
+  }
 
   async function onSubmit(data: ImageForm) {
     setMessage("Saving...");
@@ -48,23 +61,22 @@ export default function NewImagePage() {
       return;
     }
 
-    const file = data.image?.[0];
-
-    if (!file) {
+    if (!selectedFile) {
       setMessage("Please choose an image.");
       return;
     }
 
     setMessage("Compressing image...");
-    const compressedFile = await compressImage(file);
+    const compressedFile = await compressImage(selectedFile);
 
-    const originalKB = (file.size / 1024).toFixed(0);
+    const originalKB = (selectedFile.size / 1024).toFixed(0);
     const compressedKB = (compressedFile.size / 1024).toFixed(0);
 
     const fileExt = compressedFile.name.split(".").pop();
     const fileName = `${profile.team_id}/${uuidv4()}.${fileExt}`;
 
     setMessage(`Saving (${originalKB}KB → ${compressedKB}KB)...`);
+
     const { error: uploadError } = await supabase.storage
       .from("images")
       .upload(fileName, compressedFile);
@@ -96,6 +108,16 @@ export default function NewImagePage() {
     }
 
     reset();
+    setSelectedFile(null);
+
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
     setMessage("Image saved.");
   }
 
@@ -107,13 +129,49 @@ export default function NewImagePage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
             <label className="mb-2 block font-medium">Image</label>
+
             <input
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
-              {...register("image")}
-              className="w-full rounded border p-2"
+              onChange={handleImageSelected}
+              className="hidden"
             />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelected}
+              className="hidden"
+            />
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#1C1F23] px-4 py-2 font-semibold text-white hover:bg-black"
+              >
+                <Camera size={18} />
+                Take Photo
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-[#1C1F23] hover:bg-slate-50"
+              >
+                <ImagePlus size={18} />
+                Choose Existing Image
+              </button>
+            </div>
+
+            {selectedFile && (
+              <p className="mt-3 text-sm text-slate-600">
+                Selected: {selectedFile.name}
+              </p>
+            )}
           </div>
 
           <div>
@@ -169,12 +227,14 @@ export default function NewImagePage() {
 
           <button
             type="submit"
-            className="rounded bg-[#8ED4FF] text-[#1C1F23] px-4 py-2 text-white hover:bg-[#74C7FA]"
+            className="rounded bg-[#8ED4FF] px-4 py-2 text-[#1C1F23] hover:bg-[#74C7FA]"
           >
             Save
           </button>
 
-          {message && <p className="text-sm text-slate-700">{message}</p>}
+          {message && (
+            <p className="text-sm text-slate-700">{message}</p>
+          )}
         </form>
       </div>
     </main>
